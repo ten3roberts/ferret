@@ -9,6 +9,9 @@
   {#if $isAuthenticated}
     <Profile user={$user} />
   {:else}
-    <button on:click={auth.login}>Login</button>
+    <button
+      class="bg-emerald-400 py-2 px-3 hover:bg-fuchsia-900"
+      on:click={auth.login}>Login</button
+    >
   {/if}
 </div>

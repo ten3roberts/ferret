@@ -1,8 +1,9 @@
 <script>
   import Header from "../lib/Header.svelte";
   import Posts from "../lib/Posts.svelte";
-  import { posts } from "../lib/stores.js";
+  export let posts;
+  console.log("Posts: " + posts);
 </script>
 
 <Header />
-<Posts posts={$posts} />
+<Posts {posts} />

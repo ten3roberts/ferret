@@ -1,0 +1,7 @@
+{
+  "run": {
+    "cmd": "cargo run",
+    "interactive": true,
+    "action": ""
+  }
+}
