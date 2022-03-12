@@ -1,0 +1,6 @@
+{
+  "run-client": {
+    "cmd": "npm run dev -- --open",
+    "cwd": "./client/"
+  }
+}
