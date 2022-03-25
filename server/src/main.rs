@@ -1,53 +1,67 @@
+use serde_json::json;
+pub use server::*;
+
 use axum::{
-    http::StatusCode,
+    body::Body,
+    extract::{Extension, Form},
+    http::{Request, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use server::db::{Database, Post};
 use std::net::SocketAddr;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> eyre::Result<()> {
     // initialize tracing
     tracing_subscriber::fmt::init();
+    tracing::info!("Running server");
+
+    let db = Database::open().await?;
 
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
-        // `POST /users` goes to `create_user`
-        .route("/users", post(create_user));
+        .route("/create_post", post(create_post))
+        .layer(Extension(db));
+    // `POST /users` goes to `create_user`
 
-    // run our app with hyper
-    // `axum::Server` is a re-export of `hyper::Server`
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tracing::debug!("listening on {}", addr);
+    let addr = SocketAddr::from(([127, 0, 0, 1], 13000));
+    tracing::info!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatePost {
+    pub title: String,
+    pub body: String,
+}
+
+async fn create_post(
+    db: Extension<Database>,
+    Form(CreatePost { title, body }): Form<CreatePost>,
+) -> impl IntoResponse {
+    let post = Post {
+        user: "user".to_string(),
+        title,
+        body,
+    };
+    tracing::info!("Created post: {:?}", post);
+
+    let key = db.add_post(post).await;
+    "Post created"
 }
 
 // basic handler that responds with a static string
 async fn root() -> &'static str {
-    "Hello, World!"
-}
-
-async fn create_user(
-    // this argument tells axum to parse the request body
-    // as JSON into a `CreateUser` type
-    Json(payload): Json<CreateUser>,
-) -> impl IntoResponse {
-    // insert your application logic here
-    let user = User {
-        id: 1337,
-        username: payload.username,
-    };
-
-    // this will be converted into a JSON response
-    // with a status code of `201 Created`
-    (StatusCode::CREATED, Json(user))
+    "Hello, Internet!"
 }
 
 // the input to our `create_user` handler

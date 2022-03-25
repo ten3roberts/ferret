@@ -1,6 +1,13 @@
 {
   "run-client": {
     "cmd": "npm run dev -- --open",
-    "cwd": "./client/"
+    "interactive": true,
+    "cwd": "./client"
+  },
+  "run-server": {
+    "restart": true,
+    "cmd": "cargo run",
+    "interactive": true,
+    "cwd": "./server"
   }
 }

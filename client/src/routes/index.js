@@ -2,6 +2,6 @@
 export async function get() {
   return {
     status: 200,
-    body: { posts: [{ title: "Foo", content: ["Bar Baz"] }] }
+    body: { posts: [{ title: "Foo", body: ["Bar Baz"] }] }
   }
 }
