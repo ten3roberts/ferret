@@ -20,12 +20,17 @@ async function createClient() {
   return _client;
 }
 
+async function getToken() {
+  let client = await createClient()
+  return await client.getTokenSilently();
+}
+
 async function login(options) {
   let client = await createClient()
   popupOpen.set(true);
 
   try {
-    await client.loginWithPopup(options);
+    await client.loginWithRedirect(options);
 
     user.set(await client.getUser());
     console.log("Logged in as " + await client.getUser())
@@ -46,7 +51,8 @@ async function logout() {
 const auth = {
   createClient,
   login,
-  logout
+  logout,
+  getToken
 };
 
 export default auth;

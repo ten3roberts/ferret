@@ -2,15 +2,14 @@ use serde_json::json;
 pub use server::*;
 
 use axum::{
-    body::Body,
+    body::{Body, HttpBody},
     extract::{Extension, Form},
-    http::{Request, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use server::db::{Database, Post};
+use server::db::Database;
 use std::net::SocketAddr;
 
 #[tokio::main]
@@ -19,12 +18,11 @@ async fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt::init();
     tracing::info!("Running server");
 
-    let db = Database::open().await?;
+    let db = Database::open()?;
 
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(root))
         .route("/create_post", post(create_post))
         .layer(Extension(db));
     // `POST /users` goes to `create_user`
@@ -46,33 +44,15 @@ pub struct CreatePost {
 
 async fn create_post(
     db: Extension<Database>,
-    Form(CreatePost { title, body }): Form<CreatePost>,
+    Json(CreatePost { title, body }): Json<CreatePost>,
 ) -> impl IntoResponse {
-    let post = Post {
-        user: "user".to_string(),
-        title,
-        body,
+    let post = db::models::NewPost {
+        username: "user",
+        title: &title,
+        body: &body,
     };
-    tracing::info!("Created post: {:?}", post);
 
-    let key = db.add_post(post).await;
-    "Post created"
-}
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, Internet!"
-}
-
-// the input to our `create_user` handler
-#[derive(Deserialize)]
-struct CreateUser {
-    username: String,
-}
-
-// the output to our `create_user` handler
-#[derive(Serialize)]
-struct User {
-    id: u64,
-    username: String,
+    let post = db.create_post(post).await?;
+    tracing::info!("Post: {:?}", post);
+    Ok::<&'static str, db::Error>("Post created")
 }
