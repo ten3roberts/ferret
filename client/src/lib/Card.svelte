@@ -11,7 +11,7 @@
     "h-3/5 w-full font-serif bg-dark text-light p-2 rounded-b-lg h-32";
 </script>
 
-<div class="m-5 rounded-lg shadow-slate-600 shadow-sm">
+<div class="m-5 w-full rounded-lg shadow-slate-600 shadow-sm">
   {#if editable}
     <form
       on:submit|preventDefault={(_) => editable(title, body)}
@@ -28,7 +28,7 @@
     </form>
   {:else}
     {#if title != ""}
-      <h2 class={title_class}>
+      <h2 class={title_class} on:click>
         {title}
       </h2>
     {/if}

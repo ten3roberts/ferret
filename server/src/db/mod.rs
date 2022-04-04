@@ -67,6 +67,7 @@ impl Database {
     pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<Post>> {
         use crate::schema::posts::dsl::*;
         posts
+            .order(created_at.desc())
             .limit(limit)
             .load(&*self.conn.lock().await)
             .map_err(|e| e.into())

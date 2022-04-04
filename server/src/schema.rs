@@ -4,5 +4,6 @@ table! {
         username -> Varchar,
         title -> Varchar,
         body -> Text,
+        created_at -> Timestamp,
     }
 }

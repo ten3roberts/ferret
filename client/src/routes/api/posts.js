@@ -2,7 +2,7 @@ import { backend_url } from "$lib/stores"
 /** @type {import('./posts').RequestHandler} */
 export async function post(request) {
   let { title, body } = await request.request.json();
-  return await fetch(backend_url + "/create_post", {
+  const response = await fetch(backend_url + "/create_post", {
     method: "POST",
     body: JSON.stringify(
       {
@@ -11,7 +11,16 @@ export async function post(request) {
       }
     ),
     headers: { "content-type": "application/json" }
-  })
+  }).then(v => { console.log("Got:", v); return v.json() }).then(v => JSON.parse(v))
+
+  console.log("Got: ", response, typeof response);
+
+  return {
+    status: 303,
+    headers: {
+      location: `/post/${response.id}`
+    }
+  };
 }
 
 /** @type {import('./posts').RequestHandler} */

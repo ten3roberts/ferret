@@ -2,9 +2,7 @@ use serde_json::json;
 pub use server::*;
 
 use axum::{
-    body::{Body, HttpBody},
-    extract::{Extension, Form, Path},
-    http::StatusCode,
+    extract::{Extension, Path},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -39,6 +37,7 @@ async fn main() -> eyre::Result<()> {
 }
 
 pub async fn get_post(Path(id): Path<i32>, db: Extension<Database>) -> impl IntoResponse {
+    tracing::info!("Retrieving post: {id}");
     let posts = serde_json::to_string(&db.get_post(id).await?).unwrap();
 
     Ok::<_, db::Error>(posts)
@@ -46,7 +45,7 @@ pub async fn get_post(Path(id): Path<i32>, db: Extension<Database>) -> impl Into
 
 pub async fn get_posts(db: Extension<Database>) -> impl IntoResponse {
     tracing::info!("Posts");
-    let posts = serde_json::to_string(&db.get_top_posts(10).await?).unwrap();
+    let posts = serde_json::to_string(&db.get_top_posts(20).await?).unwrap();
     tracing::info!("Posts: {posts}");
 
     Ok::<_, db::Error>(posts)
@@ -68,8 +67,10 @@ async fn create_post(
         body: &body,
     };
 
-    let post = db.create_post(post).await?;
+    dbg!(&post);
+
+    let post = serde_json::to_string(&db.create_post(post).await?).unwrap();
     tracing::info!("Post: {:?}", post);
 
-    Ok::<&'static str, db::Error>("Post created")
+    Ok::<_, db::Error>(Json(post))
 }

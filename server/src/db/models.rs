@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use diesel::Queryable;
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +8,7 @@ pub struct Post {
     pub username: String,
     pub title: String,
     pub body: String,
+    pub created_at: NaiveDateTime,
 }
 
 use crate::schema::posts;

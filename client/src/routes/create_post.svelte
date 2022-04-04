@@ -4,16 +4,17 @@
   import auth from "$lib/auth/service";
   import Card from "$lib/Card.svelte";
 
-  let title = "";
-  let body = "";
-  async function handleSubmit() {
+  async function handleSubmit(title, body) {
     const submit = await fetch("/api/posts", {
       method: "POST",
       body: JSON.stringify({
-        title: title,
-        body: body,
+        title,
+        body,
       }),
-      /* headers: { "content-type": "application/json" }, */
+    }).then((v) => {
+      if (v.redirected) {
+        location.href = v.url;
+      }
     });
   }
 </script>

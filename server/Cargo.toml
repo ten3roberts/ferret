@@ -26,4 +26,5 @@ tracing = "0.1.32"
 tracing-subscriber = "0.3.9"
 dashmap = { version = "5.2.0", features = ["serde"] }
 futures = "0.3.21"
-diesel = { version = "1.4.8", features = ["postgres"] }
+diesel = { version = "1.4.8", features = ["postgres", "chrono"] }
+chrono = { version = "0.4.19", features = ["serde"] }

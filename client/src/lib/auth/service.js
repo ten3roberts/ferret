@@ -30,7 +30,7 @@ async function login(options) {
   popupOpen.set(true);
 
   try {
-    await client.loginWithRedirect(options);
+    await client.loginWithPopup(options);
 
     user.set(await client.getUser());
     console.log("Logged in as " + await client.getUser())
