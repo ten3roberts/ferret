@@ -5,11 +5,14 @@
   const routes = ["About", "Home"];
 </script>
 
-<nav class="shadow flex justify-between items-center">
+<nav
+  class="shadow flex justify-between items-center text-light bg-dark sticky top-0
+  w-full"
+>
   <ol class="flex justify-start items-center">
     <a href="/" class="font-bold px-5">Ferret</a>
     {#each routes as route}
-      <li class="py-2 px-3 hover:bg-emerald-400">
+      <li class="py-2 px-3 hover:bg-green">
         <a href={"/" + route.toLowerCase()}>{route}</a>
       </li>
     {/each}

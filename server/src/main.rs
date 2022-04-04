@@ -3,7 +3,8 @@ pub use server::*;
 
 use axum::{
     body::{Body, HttpBody},
-    extract::{Extension, Form},
+    extract::{Extension, Form, Path},
+    http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -24,8 +25,9 @@ async fn main() -> eyre::Result<()> {
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/create_post", post(create_post))
+        .route("/posts", get(get_posts))
+        .route("/post/:id", get(get_post))
         .layer(Extension(db));
-    // `POST /users` goes to `create_user`
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 13000));
     tracing::info!("listening on {}", addr);
@@ -34,6 +36,20 @@ async fn main() -> eyre::Result<()> {
         .await?;
 
     Ok(())
+}
+
+pub async fn get_post(Path(id): Path<i32>, db: Extension<Database>) -> impl IntoResponse {
+    let posts = serde_json::to_string(&db.get_post(id).await?).unwrap();
+
+    Ok::<_, db::Error>(posts)
+}
+
+pub async fn get_posts(db: Extension<Database>) -> impl IntoResponse {
+    tracing::info!("Posts");
+    let posts = serde_json::to_string(&db.get_top_posts(10).await?).unwrap();
+    tracing::info!("Posts: {posts}");
+
+    Ok::<_, db::Error>(posts)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -54,5 +70,6 @@ async fn create_post(
 
     let post = db.create_post(post).await?;
     tracing::info!("Post: {:?}", post);
+
     Ok::<&'static str, db::Error>("Post created")
 }

@@ -13,3 +13,11 @@ export async function post(request) {
     headers: { "content-type": "application/json" }
   })
 }
+
+/** @type {import('./posts').RequestHandler} */
+export async function get() {
+  console.log("Getting posts")
+  return await fetch(backend_url + "/posts", {
+    method: "GET",
+  })
+}
