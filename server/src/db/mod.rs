@@ -12,6 +12,8 @@ use tokio::sync::Mutex;
 use diesel::pg::*;
 use diesel::prelude::*;
 use dotenv::dotenv;
+use tracing::error;
+use tracing::info;
 
 #[derive(Clone)]
 pub struct Database {
@@ -45,23 +47,47 @@ impl Database {
         })
     }
 
-    pub async fn create_post<'a>(&self, post: NewPost<'a>) -> Result<Post> {
-        if post.body.is_empty() || post.title.is_empty() || post.username.is_empty() {
+    pub async fn create_post<'a>(&self, post: NewPost<'a>, uname: &str) -> Result<Post> {
+        if post.body.is_empty() || post.title.is_empty() || post.user_id.is_empty() {
             tracing::warn!("Post cannot be empty");
             return Err(Error::EmptyPost);
         }
-        diesel::insert_into(crate::schema::posts::table)
+
+        tracing::info!("Inserting post {post:?}");
+
+        use super::schema::users::dsl::*;
+        let conn = self.conn.lock().await;
+        // Create or update user
+        let user: User = diesel::insert_into(crate::schema::users::table)
+            .values(&User {
+                user_id: post.user_id.into(),
+                username: uname.into(),
+            })
+            .on_conflict(user_id)
+            .do_update()
+            .set(username.eq_all(uname))
+            .get_result(&*conn)
+            .map_err(|e| {
+                error!("{e}");
+                e
+            })?;
+
+        info!("User: {user:#?}");
+
+        let post: Post = diesel::insert_into(crate::schema::posts::table)
             .values(&post)
-            .get_result(&*self.conn.lock().await)
-            .map_err(|e| e.into())
+            .get_result(&*conn)?;
+
+        Ok(post)
     }
 
     pub async fn get_user_posts(&self, user: &str) -> Result<Vec<Post>> {
-        use crate::schema::posts::dsl::*;
-        posts
-            .filter(username.eq_all(user))
-            .load(&*self.conn.lock().await)
-            .map_err(|e| e.into())
+        use crate::schema::users::dsl::*;
+
+        let conn = self.conn.lock().await;
+        let user: User = users.find(user).first(&*conn).unwrap();
+        let posts: Vec<Post> = Post::belonging_to(&user).load(&*conn).unwrap();
+        Ok(posts)
     }
 
     pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<Post>> {

@@ -1,10 +1,14 @@
+use hyper::Body;
+use reqwest::StatusCode;
 use serde_json::json;
 pub use server::*;
 mod auth;
 
 use axum::{
+    body::Bytes,
     extract::{Extension, Path},
-    headers::Cookie,
+    http::{Request, Response},
+    middleware::{self, Next},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -17,6 +21,9 @@ use std::net::SocketAddr;
 async fn main() -> eyre::Result<()> {
     // initialize tracing
     tracing_subscriber::fmt::init();
+    if std::env::var_os("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "server=debug,tower_http=debug")
+    }
     tracing::info!("Running server");
 
     let db = Database::open()?;
@@ -24,6 +31,9 @@ async fn main() -> eyre::Result<()> {
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
+        // .layer(middleware::from_fn(print_request_response))
+        .layer(tower_http::trace::TraceLayer::new_for_http())
+        .layer(middleware::from_fn(print_request_response))
         .route("/create_post", post(create_post))
         .route("/posts", get(get_posts))
         .route("/post/:id", get(get_post))
@@ -66,15 +76,53 @@ async fn create_post(
 ) -> impl IntoResponse {
     tracing::info!("Creating post. Claims: {claims}");
     let post = db::models::NewPost {
-        username: "user",
+        user_id: &claims.sub,
         title: &title,
         body: &body,
     };
 
-    dbg!(&post);
+    let post = serde_json::to_string(&db.create_post(post, &claims.username).await?).unwrap();
 
-    let post = serde_json::to_string(&db.create_post(post).await?).unwrap();
-    tracing::info!("Post: {:?}", post);
+    tracing::info!("User {claims:#?} created new post: {post:#?}");
 
     Ok::<_, db::Error>(Json(post))
+}
+
+async fn print_request_response(
+    req: Request<Body>,
+    next: Next<Body>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let (parts, body) = req.into_parts();
+    let bytes = buffer_and_print("request", body).await?;
+    let req = Request::from_parts(parts, Body::from(bytes));
+
+    let res = next.run(req).await;
+
+    let (parts, body) = res.into_parts();
+    let bytes = buffer_and_print("response", body).await?;
+    let res = Response::from_parts(parts, Body::from(bytes));
+
+    Ok(res)
+}
+
+async fn buffer_and_print<B>(direction: &str, body: B) -> Result<Bytes, (StatusCode, String)>
+where
+    B: axum::body::HttpBody<Data = Bytes> + Sized,
+    B::Error: std::fmt::Display,
+{
+    let bytes = match hyper::body::to_bytes(body).await {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!("failed to read {} body: {}", direction, err),
+            ));
+        }
+    };
+
+    if let Ok(body) = std::str::from_utf8(&bytes) {
+        tracing::debug!("{} body = {:?}", direction, body);
+    }
+
+    Ok(bytes)
 }

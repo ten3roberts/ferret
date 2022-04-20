@@ -1,7 +1,7 @@
 table! {
     posts (id) {
         id -> Int4,
-        username -> Varchar,
+        user_id -> Varchar,
         title -> Varchar,
         body -> Text,
         created_at -> Timestamp,
@@ -14,6 +14,8 @@ table! {
         username -> Varchar,
     }
 }
+
+joinable!(posts -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     posts,

@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::{fmt, sync::mpsc};
 
 use axum::{
     async_trait,
@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 use tokio::sync::{OnceCell, RwLock};
+use tracing::{error, info, span};
 
 impl std::fmt::Display for Claims {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,6 +52,7 @@ where
 {
     type Rejection = AuthError;
 
+    #[tracing::instrument(skip_all, name = "Authentication")]
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
         tracing::info!("Validating claims");
 
@@ -71,6 +73,7 @@ where
 
         let jwks = JWKS
             .get_or_init(|| async move {
+                tracing::info!("Fetchng jwks");
                 let response =
                     reqwest::get("https://dev-cqwzutzq.us.auth0.com/.well-known/jwks.json")
                         .await
@@ -82,18 +85,24 @@ where
             })
             .await;
 
+        info!("JWKS: {jwks:#?}");
+
         if let Some(j) = jwks.find(&kid) {
             match j.algorithm {
                 AlgorithmParameters::RSA(ref rsa) => {
                     let decoding_key = DecodingKey::from_rsa_components(&rsa.n, &rsa.e).unwrap();
                     let mut validation = Validation::new(j.common.algorithm.unwrap());
                     validation.validate_exp = false;
-                    let token = decode::<Self>(token, &decoding_key, &validation)
-                        .map_err(|e| AuthError::InvalidToken(e))?
+                    let claims = decode::<Self>(token, &decoding_key, &validation)
+                        .map_err(|e| {
+                            error!("Failed to decode token: {e}");
+                            AuthError::InvalidToken(e)
+                        })?
                         .claims;
 
-                    tracing::info!("{:?}", token);
-                    Ok(token)
+                    tracing::info!("Decoded claims: {claims}");
+
+                    Ok(claims)
                 }
                 _ => {
                     tracing::error!("Token is not RSA encrypted");
@@ -128,6 +137,7 @@ impl IntoResponse for AuthError {
 pub struct Claims {
     pub sub: String,
     pub exp: usize,
+    #[serde(rename = "https://ferret.io/username")]
     pub username: String,
 }
 
