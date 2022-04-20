@@ -1,44 +1,31 @@
+use std::sync::mpsc;
+
 use axum::{
     async_trait,
-    extract::{FromRequest, RequestParts, TypedHeader},
+    extract::{
+        rejection::{StringRejection, TypedHeaderRejection},
+        FromRequest, RequestParts, TypedHeader,
+    },
     headers::{authorization::Bearer, Authorization},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use dotenv::dotenv;
+use jsonwebtoken::{
+    decode, decode_header,
+    jwk::{self, AlgorithmParameters, JwkSet},
+    DecodingKey, EncodingKey, Header, Validation,
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
-
-pub fn authorize(Json(payload): Json<AuthPayload>) -> eyre::Result<Json<AuthBody>> {
-    // Check if the user sent the credentials
-    if payload.client_id.is_empty() || payload.client_secret.is_empty() {
-        return Err(AuthError::MissingCredentials)?;
-    }
-    tracing::info!("Auth: {:#?}", payload);
-    // Here you can check the user credentials from a database
-    if payload.client_id != "foo" || payload.client_secret != "bar" {
-        return Err(AuthError::WrongCredentials)?;
-    }
-    let claims = Claims {
-        sub: "b@b.com".to_owned(),
-        company: "ACME".to_owned(),
-        // Mandatory expiry time as UTC timestamp
-        exp: 2000000000, // May 2033
-    };
-    // Create the authorization token
-    let token = encode(&Header::default(), &claims, &KEYS.encoding)
-        .map_err(|_| AuthError::TokenCreation)?;
-
-    // Send the authorized token
-    Ok(Json(AuthBody::new(token)))
-}
+use tokio::sync::{OnceCell, RwLock};
 
 impl std::fmt::Display for Claims {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Email: {}\nCompany: {}", self.sub, self.company)
+        write!(f, "Email: {}\n", self.sub)
     }
 }
 
@@ -51,6 +38,12 @@ impl AuthBody {
     }
 }
 
+static JWKS: OnceCell<JwkSet> = OnceCell::const_new();
+// tokio::spawn(async move {
+// });
+
+// });
+
 #[async_trait]
 impl<B> FromRequest<B> for Claims
 where
@@ -59,39 +52,83 @@ where
     type Rejection = AuthError;
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        // Extract the token from the authorization header
+        tracing::info!("Validating claims");
+
         let TypedHeader(Authorization(bearer)) =
             TypedHeader::<Authorization<Bearer>>::from_request(req)
                 .await
-                .map_err(|_| AuthError::InvalidToken)?;
-        // Decode the user data
-        let token_data = decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default())
-            .map_err(|_| AuthError::InvalidToken)?;
+                .map_err(|e| AuthError::HeaderError(e))?;
 
-        Ok(token_data.claims)
+        let token = bearer.token();
+        dbg!(token);
+        let header = decode_header(token).map_err(|e| AuthError::InvalidToken(e))?;
+        let kid = match header.kid {
+            Some(k) => k,
+            None => return Err(AuthError::MissingKid),
+        };
+
+        tracing::info!("Parsed kid");
+
+        let jwks = JWKS
+            .get_or_init(|| async move {
+                let response =
+                    reqwest::get("https://dev-cqwzutzq.us.auth0.com/.well-known/jwks.json")
+                        .await
+                        .unwrap()
+                        .text()
+                        .await
+                        .unwrap();
+                serde_json::from_str(&response).unwrap()
+            })
+            .await;
+
+        if let Some(j) = jwks.find(&kid) {
+            match j.algorithm {
+                AlgorithmParameters::RSA(ref rsa) => {
+                    let decoding_key = DecodingKey::from_rsa_components(&rsa.n, &rsa.e).unwrap();
+                    let mut validation = Validation::new(j.common.algorithm.unwrap());
+                    validation.validate_exp = false;
+                    let token = decode::<Self>(token, &decoding_key, &validation)
+                        .map_err(|e| AuthError::InvalidToken(e))?
+                        .claims;
+
+                    tracing::info!("{:?}", token);
+                    Ok(token)
+                }
+                _ => {
+                    tracing::error!("Token is not RSA encrypted");
+                    unreachable!("this should be a RSA")
+                }
+            }
+        } else {
+            tracing::error!("Missing jwks for kid");
+            return Err(AuthError::MissingKid);
+        }
     }
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            AuthError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
-            AuthError::MissingCredentials => (StatusCode::BAD_REQUEST, "Missing credentials"),
-            AuthError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "Token creation error"),
-            AuthError::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
+        let status = match self {
+            AuthError::WrongCredentials => StatusCode::UNAUTHORIZED,
+            AuthError::MissingCredentials => StatusCode::BAD_REQUEST,
+            AuthError::TokenCreation => StatusCode::INTERNAL_SERVER_ERROR,
+            AuthError::InvalidToken(_) => StatusCode::BAD_REQUEST,
+            AuthError::HeaderError(_) => StatusCode::BAD_REQUEST,
+            AuthError::MissingKid => StatusCode::BAD_REQUEST,
         };
         let body = Json(json!({
-            "error": error_message,
+            "error": self.to_string(),
         }));
         (status, body).into_response()
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    company: String,
-    exp: usize,
+pub struct Claims {
+    pub sub: String,
+    pub exp: usize,
+    pub username: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -107,15 +144,19 @@ pub struct AuthPayload {
 }
 
 #[derive(Debug, Error)]
-enum AuthError {
+pub enum AuthError {
     #[error("Wrong credetials")]
     WrongCredentials,
+    #[error("Missing kid")]
+    MissingKid,
     #[error("Missing credentials")]
     MissingCredentials,
     #[error("Failed to create token")]
     TokenCreation,
-    #[error("Invalid token")]
-    InvalidToken,
+    #[error("Malformed auth header {0}")]
+    HeaderError(TypedHeaderRejection),
+    #[error("Invalid token: {0}")]
+    InvalidToken(jsonwebtoken::errors::Error),
 }
 
 struct Keys {
@@ -133,6 +174,7 @@ impl Keys {
 }
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
+    dotenv().ok();
     let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     Keys::new(secret.as_bytes())
 });

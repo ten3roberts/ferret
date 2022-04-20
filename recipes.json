@@ -9,5 +9,18 @@
     "cmd": "cargo run",
     "interactive": true,
     "cwd": "./server"
+  },
+  "debug-server": {
+    "cmd": "cargo build",
+    "action": [
+      "qf",
+      {
+        "name": "dap",
+        "opts": {
+          "program": "./server/target/debug/server"
+        }
+      }
+    ],
+    "cwd": "./server"
   }
 }

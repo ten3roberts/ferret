@@ -10,6 +10,7 @@
       body: JSON.stringify({
         title,
         body,
+        token: await auth.getToken(),
       }),
     }).then((v) => {
       if (v.redirected) {

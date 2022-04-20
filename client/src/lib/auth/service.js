@@ -8,9 +8,12 @@ let _client = null;
 async function createClient() {
   if (_client !== null) { return _client }
 
+  console.log(config);
   _client = await createAuth0Client({
     domain: config.domain,
-    client_id: config.clientId
+    client_id: config.clientId,
+    audience: config.audience,
+    useRefreshTokens: true,
   });
 
   isAuthenticated.set(await _client.isAuthenticated());
@@ -22,7 +25,9 @@ async function createClient() {
 
 async function getToken() {
   let client = await createClient()
-  return await client.getTokenSilently();
+  const token = await client.getTokenSilently();
+  console.log("Got token: " + token);
+  return token
 }
 
 async function login(options) {

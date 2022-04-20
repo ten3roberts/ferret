@@ -1,14 +1,16 @@
 use serde_json::json;
 pub use server::*;
+mod auth;
 
 use axum::{
     extract::{Extension, Path},
+    headers::Cookie,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use server::db::Database;
+use server::{auth::Claims, db::Database};
 use std::net::SocketAddr;
 
 #[tokio::main]
@@ -60,7 +62,9 @@ pub struct CreatePost {
 async fn create_post(
     db: Extension<Database>,
     Json(CreatePost { title, body }): Json<CreatePost>,
+    claims: Claims,
 ) -> impl IntoResponse {
+    tracing::info!("Creating post. Claims: {claims}");
     let post = db::models::NewPost {
         username: "user",
         title: &title,
