@@ -3,7 +3,12 @@
   import Post from "$lib/Post.svelte";
   import Posts from "../lib/Posts.svelte";
   async function getPosts() {
-    return fetch("/api/posts", { method: "GET" }).then((v) => v.json());
+    return fetch("/api/posts", { method: "GET" })
+      .then((v) => v.json())
+      .then((v) => {
+        console.log(v);
+        return v;
+      });
   }
   let result = getPosts();
 </script>

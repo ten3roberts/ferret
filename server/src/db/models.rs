@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::schema::*;
 use chrono::NaiveDateTime;
 use diesel::Queryable;
@@ -8,21 +6,34 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Identifiable, Clone, PartialEq, Serialize, Deserialize, Queryable, Insertable)]
 #[primary_key(user_id)]
 #[table_name = "users"]
-pub struct User<'a> {
+pub struct User {
     pub user_id: String,
-    pub username: Cow<'a, str>,
+    pub picture: Option<String>,
+    pub name: String,
 }
 
 #[derive(
-    Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, Queryable,
+    Identifiable, Associations, Debug, Clone, PartialEq, Deserialize, Queryable, Serialize,
 )]
-#[belongs_to(parent = "User<'_>")]
+#[belongs_to(User)]
 pub struct Post {
     pub id: i32,
     pub user_id: String,
     pub title: String,
     pub body: String,
     pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize, PartialEq)]
+pub struct UserPost {
+    user: User,
+    post: Post,
+}
+
+impl UserPost {
+    pub fn new(user: User, post: Post) -> Self {
+        Self { user, post }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Insertable)]

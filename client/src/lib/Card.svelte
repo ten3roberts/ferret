@@ -4,14 +4,17 @@
   export let title = "";
   export let body = "";
   export let editable = null;
+  export let clickable = false;
 
-  const title_class =
-    "w-full font-bold font-mono bg-gray-800 text-light p-2 rounded-t-lg";
+  let title_class =
+    "w-full font-bold font-mono bg-gray-800 text-light p-2 rounded-t-lg " +
+    (clickable ? "hover:bg-green-500 hover:text-dark cursor-pointer" : "");
+
   const body_class =
     "h-3/5 w-full font-serif bg-dark text-light p-2 rounded-b-lg h-32";
 </script>
 
-<div class="m-5 w-full rounded-lg shadow-slate-600 shadow-sm">
+<div class="m-2 w-full rounded-lg shadow-slate-600 shadow-sm">
   {#if editable}
     <form
       on:submit|preventDefault={(_) => editable(title, body)}

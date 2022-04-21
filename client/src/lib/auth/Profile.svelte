@@ -4,13 +4,16 @@
   /* export let displayName; */
   /* export let photoURL; */
   /* export let uid; */
+  /* <button on:click={auth.logout}>Logout</button> */
 </script>
 
-<div class="flex justify-evenly gap-2 items-center">
+<div class="flex justify-evenly gap-2 items-center m-2">
   {#if user.picture}
-    <img src={user.picture} class="w-8 rounded-full" alt="profilePicture" />
+    <img
+      src={user.picture}
+      class="w-8 rounded-full bg-purple-500"
+      alt="profilePicture"
+    />
   {/if}
-  <h3>{user.name}</h3>
-  <button on:click={auth.logout}>Logout</button>
-  <h4 class="divide-gray-100">{user.user_id}</h4>
+  <h3 class="text-light">{user.name}</h3>
 </div>

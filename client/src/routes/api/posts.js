@@ -23,7 +23,7 @@ export async function post({ request }) {
   return {
     status: 303,
     headers: {
-      location: `/post/${response.id}`
+      location: `/post/${response.post.id}`
     }
   };
 }

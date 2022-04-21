@@ -11,7 +11,8 @@ table! {
 table! {
     users (user_id) {
         user_id -> Varchar,
-        username -> Varchar,
+        picture -> Nullable<Varchar>,
+        name -> Varchar,
     }
 }
 

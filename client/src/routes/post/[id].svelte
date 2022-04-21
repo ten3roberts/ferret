@@ -3,11 +3,10 @@
 
   import Post from "$lib/Post.svelte";
 
-  export let title = "";
-  export let body = "";
-  export let id = 0;
+  export let user;
+  export let post;
 </script>
 
 <Container>
-  <Post {title} {body} {id} />
+  <Post {user} {post} />
 </Container>

@@ -1,6 +1,5 @@
 use hyper::Body;
 use reqwest::StatusCode;
-use serde_json::json;
 pub use server::*;
 mod auth;
 
@@ -81,7 +80,7 @@ async fn create_post(
         body: &body,
     };
 
-    let post = serde_json::to_string(&db.create_post(post, &claims.username).await?).unwrap();
+    let post = serde_json::to_string(&db.create_post(post, &claims).await?).unwrap();
 
     tracing::info!("User {claims:#?} created new post: {post:#?}");
 

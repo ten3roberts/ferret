@@ -1,4 +1,5 @@
 <script>
+  /// Represents a list of non detailed posts
   export let posts;
   import Post from "./Post.svelte";
   import Container from "./Container.svelte";

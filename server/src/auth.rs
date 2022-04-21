@@ -1,28 +1,20 @@
-use std::{fmt, sync::mpsc};
-
 use axum::{
     async_trait,
-    extract::{
-        rejection::{StringRejection, TypedHeaderRejection},
-        FromRequest, RequestParts, TypedHeader,
-    },
+    extract::{rejection::TypedHeaderRejection, FromRequest, RequestParts, TypedHeader},
     headers::{authorization::Bearer, Authorization},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
-use dotenv::dotenv;
 use jsonwebtoken::{
-    decode, decode_header,
-    jwk::{self, AlgorithmParameters, JwkSet},
-    DecodingKey, EncodingKey, Header, Validation,
+    jwk::{AlgorithmParameters, JwkSet},
+    *,
 };
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
-use tokio::sync::{OnceCell, RwLock};
-use tracing::{error, info, span};
+use tokio::sync::OnceCell;
+use tracing::{error, info};
 
 impl std::fmt::Display for Claims {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -30,20 +22,7 @@ impl std::fmt::Display for Claims {
     }
 }
 
-impl AuthBody {
-    fn new(access_token: String) -> Self {
-        Self {
-            access_token,
-            token_type: "Bearer".to_string(),
-        }
-    }
-}
-
 static JWKS: OnceCell<JwkSet> = OnceCell::const_new();
-// tokio::spawn(async move {
-// });
-
-// });
 
 #[async_trait]
 impl<B> FromRequest<B> for Claims
@@ -136,21 +115,11 @@ impl IntoResponse for AuthError {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
+    #[serde(rename = "https://ferret.io/picture")]
+    pub picture: Option<String>,
     pub exp: usize,
     #[serde(rename = "https://ferret.io/username")]
     pub username: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AuthBody {
-    access_token: String,
-    token_type: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AuthPayload {
-    client_id: String,
-    client_secret: String,
 }
 
 #[derive(Debug, Error)]
@@ -168,23 +137,3 @@ pub enum AuthError {
     #[error("Invalid token: {0}")]
     InvalidToken(jsonwebtoken::errors::Error),
 }
-
-struct Keys {
-    encoding: EncodingKey,
-    decoding: DecodingKey,
-}
-
-impl Keys {
-    fn new(secret: &[u8]) -> Self {
-        Self {
-            encoding: EncodingKey::from_secret(secret),
-            decoding: DecodingKey::from_secret(secret),
-        }
-    }
-}
-
-static KEYS: Lazy<Keys> = Lazy::new(|| {
-    dotenv().ok();
-    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    Keys::new(secret.as_bytes())
-});

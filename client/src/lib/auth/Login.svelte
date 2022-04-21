@@ -8,7 +8,10 @@
 
 <div>
   {#if $isAuthenticated}
-    <Profile user={$user} />
+    <div class="flex row">
+      <Profile user={$user} />
+      <Button on:click={auth.logout} text="Logout" />
+    </div>
   {:else}
     <Button on:click={auth.login} text="Login" />
   {/if}

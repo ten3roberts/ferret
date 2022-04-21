@@ -2,6 +2,11 @@ pub mod models;
 
 use std::{env, sync::Arc};
 
+use crate::auth::Claims;
+use crate::schema::posts;
+use crate::schema::posts::created_at;
+use crate::schema::users;
+
 use self::models::NewPost;
 pub use self::models::*;
 use axum::http::StatusCode;
@@ -47,7 +52,7 @@ impl Database {
         })
     }
 
-    pub async fn create_post<'a>(&self, post: NewPost<'a>, uname: &str) -> Result<Post> {
+    pub async fn create_post<'a>(&self, post: NewPost<'a>, claims: &Claims) -> Result<UserPost> {
         if post.body.is_empty() || post.title.is_empty() || post.user_id.is_empty() {
             tracing::warn!("Post cannot be empty");
             return Err(Error::EmptyPost);
@@ -60,12 +65,16 @@ impl Database {
         // Create or update user
         let user: User = diesel::insert_into(crate::schema::users::table)
             .values(&User {
-                user_id: post.user_id.into(),
-                username: uname.into(),
+                user_id: claims.sub.clone(),
+                picture: claims.picture.to_owned(),
+                name: claims.username.to_owned(),
             })
             .on_conflict(user_id)
             .do_update()
-            .set(username.eq_all(uname))
+            .set((
+                name.eq_all(&claims.username),
+                picture.eq_all(&claims.picture),
+            ))
             .get_result(&*conn)
             .map_err(|e| {
                 error!("{e}");
@@ -78,7 +87,7 @@ impl Database {
             .values(&post)
             .get_result(&*conn)?;
 
-        Ok(post)
+        Ok(UserPost::new(user, post))
     }
 
     pub async fn get_user_posts(&self, user: &str) -> Result<Vec<Post>> {
@@ -90,21 +99,30 @@ impl Database {
         Ok(posts)
     }
 
-    pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<Post>> {
-        use crate::schema::posts::dsl::*;
-        posts
+    pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<UserPost>> {
+        let res: Vec<(User, Post)> = users::table
+            .inner_join(posts::table)
             .order(created_at.desc())
             .limit(limit)
-            .load(&*self.conn.lock().await)
-            .map_err(|e| e.into())
+            .load(&*self.conn.lock().await)?;
+
+        Ok(res
+            .into_iter()
+            .map(|(user, post)| UserPost::new(user, post))
+            .collect())
     }
 
-    pub async fn get_post(&self, key: i32) -> Result<Post> {
+    pub async fn get_post(&self, key: i32) -> Result<UserPost> {
         use crate::schema::posts::dsl::*;
-        posts
-            .filter(id.eq_all(key))
-            .first(&*self.conn.lock().await)
-            .map_err(|e| e.into())
+        let conn = self.conn.lock().await;
+        let post: Post = posts.find(key).first(&*conn)?;
+
+        let user: User = crate::schema::users::table
+            .find(&post.user_id)
+            .first(&*conn)
+            .unwrap();
+
+        Ok(UserPost::new(user, post))
     }
 }
 

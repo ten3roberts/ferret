@@ -1,6 +1,7 @@
 CREATE TABLE users (
   user_id VARCHAR NOT NULL PRIMARY KEY,
-  username VARCHAR NOT NULL
+  picture VARCHAR,
+  name VARCHAR NOT NULL
 );
 
 CREATE TABLE posts (
