@@ -26,7 +26,6 @@ async function createClient() {
 async function getToken() {
   let client = await createClient()
   const token = await client.getTokenSilently();
-  console.log("Got token: " + token);
   return token
 }
 
@@ -38,7 +37,6 @@ async function login(options) {
     await client.loginWithPopup(options);
 
     user.set(await client.getUser());
-    console.log("Logged in as " + await client.getUser())
     isAuthenticated.set(true);
   } catch (e) {
     // eslint-disable-next-line

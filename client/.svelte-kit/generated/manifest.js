@@ -11,7 +11,7 @@ const d = decodeURIComponent;
 
 export const routes = [
 	// src/routes/index.svelte
-	[/^\/$/, [c[0], c[2]], [c[1]], null, ''],
+	[/^\/$/, [c[0], c[2]], [c[1]]],
 
 	// src/routes/create_post.svelte
 	[/^\/create_post\/?$/, [c[0], c[3]], [c[1]]],

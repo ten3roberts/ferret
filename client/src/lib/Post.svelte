@@ -1,6 +1,7 @@
 <script>
   /// Represents a post card
   import Profile from "./auth/Profile.svelte";
+  import { timeAgo } from "$lib/timeago";
   import Card from "./Card.svelte";
 
   export let post;
@@ -18,7 +19,7 @@
     <Profile {user} />
     {#if post.created_at}
       <h2 class="text-light text-center">
-        {new Date(post.created_at).toLocaleString()}
+        {timeAgo(new Date(post.created_at + "Z"))}
       </h2>
     {/if}
   </div>
