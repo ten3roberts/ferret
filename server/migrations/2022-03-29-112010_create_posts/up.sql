@@ -5,7 +5,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE posts (
-  id SERIAL PRIMARY KEY,
+  post_id SERIAL PRIMARY KEY,
   user_id VARCHAR NOT NULL REFERENCES users,
   title VARCHAR NOT NULL,
   body TEXT NOT NULL,

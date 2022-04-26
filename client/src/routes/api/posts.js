@@ -13,15 +13,13 @@ export async function post({ request }) {
     ),
     headers: { "content-type": "application/json", "Authorization": "Bearer " + token }
   })
-    .then(async v => { if (v.ok) return v; else return Promise.reject(await v.text()) })
-    .then(v => v.json())
-    .then(v => { console.log("Got: ", v); return v })
+    .then(async v => { if (v.ok) return v.json(); else return Promise.reject(await v.text()) })
     .then(v => JSON.parse(v))
 
   return {
     status: 303,
     headers: {
-      location: `/post/${response.post.id}`
+      location: `/post/${response.post.post_id}`
     }
   };
 }

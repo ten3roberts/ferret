@@ -4,7 +4,7 @@ const c = [
 	() => import("../../src/routes/index.svelte"),
 	() => import("../../src/routes/create_post.svelte"),
 	() => import("../../src/routes/Post.svelte"),
-	() => import("../../src/routes/post/[id].svelte")
+	() => import("../../src/routes/post/[post_id].svelte")
 ];
 
 const d = decodeURIComponent;
@@ -19,8 +19,8 @@ export const routes = [
 	// src/routes/Post.svelte
 	[/^\/Post\/?$/, [c[0], c[4]], [c[1]]],
 
-	// src/routes/post/[id].svelte
-	[/^\/post\/([^/]+?)\/?$/, [c[0], c[5]], [c[1]], (m) => ({ id: d(m[1])}), 'post/[id]']
+	// src/routes/post/[post_id].svelte
+	[/^\/post\/([^/]+?)\/?$/, [c[0], c[5]], [c[1]], (m) => ({ post_id: d(m[1])}), 'post/[post_id]']
 ];
 
 // we import the root layout/error components eagerly, so that

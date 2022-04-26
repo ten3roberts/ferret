@@ -1,3 +1,5 @@
+use std::primitive;
+
 use crate::schema::*;
 use chrono::NaiveDateTime;
 use diesel::Queryable;
@@ -16,8 +18,9 @@ pub struct User {
     Identifiable, Associations, Debug, Clone, PartialEq, Deserialize, Queryable, Serialize,
 )]
 #[belongs_to(User)]
+#[primary_key(post_id)]
 pub struct Post {
-    pub id: i32,
+    pub post_id: i32,
     pub user_id: String,
     pub title: String,
     pub body: String,
@@ -39,7 +42,25 @@ impl UserPost {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Insertable)]
 #[table_name = "posts"]
 pub struct NewPost<'a> {
-    pub user_id: &'a str,
     pub title: &'a str,
+    pub body: &'a str,
+}
+
+#[derive(
+    Identifiable, Associations, Debug, Clone, PartialEq, Deserialize, Serialize, Queryable,
+)]
+#[primary_key(comment_id)]
+pub struct Comment {
+    pub comment_id: i32,
+    pub post_id: i32,
+    pub user_id: String,
+    pub body: String,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Insertable)]
+#[table_name = "comments"]
+pub struct NewComment<'a> {
+    pub post_id: i32,
     pub body: &'a str,
 }

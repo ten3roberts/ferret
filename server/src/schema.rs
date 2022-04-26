@@ -1,6 +1,16 @@
 table! {
-    posts (id) {
-        id -> Int4,
+    comments (comment_id) {
+        comment_id -> Int4,
+        post_id -> Int4,
+        user_id -> Varchar,
+        body -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
+    posts (post_id) {
+        post_id -> Int4,
         user_id -> Varchar,
         title -> Varchar,
         body -> Text,
@@ -16,9 +26,8 @@ table! {
     }
 }
 
+joinable!(comments -> posts (post_id));
+joinable!(comments -> users (user_id));
 joinable!(posts -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(
-    posts,
-    users,
-);
+allow_tables_to_appear_in_same_query!(comments, posts, users,);

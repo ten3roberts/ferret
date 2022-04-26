@@ -75,7 +75,6 @@ async fn create_post(
 ) -> impl IntoResponse {
     tracing::info!("Creating post. Claims: {claims}");
     let post = db::models::NewPost {
-        user_id: &claims.sub,
         title: &title,
         body: &body,
     };

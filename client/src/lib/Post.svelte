@@ -13,7 +13,7 @@
     title={post.title}
     body={post.body}
     clickable={true}
-    on:click={() => (location.href = "/post/" + post.id)}
+    on:click={() => (location.href = "/post/" + post.post_id)}
   />
   <div class="bg-dark m-2 p-2 w-1/5 rounded-lg">
     <Profile {user} />

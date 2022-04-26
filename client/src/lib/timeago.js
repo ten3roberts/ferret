@@ -24,11 +24,11 @@ function getFormattedDate(date, prefomattedDate = null, hideYear = false) {
 
   if (hideYear) {
     // 10. January at 10:20
-    return `${day}. ${month} at ${hours}:${minutes}`;
+    return `${day} ${month} at ${hours}:${minutes}`;
   }
 
   // 10. January 2017. at 10:20
-  return `${day}. ${month} ${year}. at ${hours}:${minutes}`;
+  return `${day} ${month} ${year}. at ${hours}:${minutes}`;
 }
 
 
@@ -61,7 +61,7 @@ export function timeAgo(date) {
   } else if (isYesterday) {
     return getFormattedDate(date, 'Yesterday'); // Yesterday at 10:20
   } else if (isThisYear) {
-    return getFormattedDate(date, false, true); // 10. January at 10:20
+    return getFormattedDate(date, null, true); // 10. January at 10:20
   }
 
   return getFormattedDate(date); // 10. January 2017. at 10:20

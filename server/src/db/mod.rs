@@ -1,10 +1,9 @@
 pub mod models;
 
+use std::any::Any;
 use std::{env, sync::Arc};
 
 use crate::auth::Claims;
-use crate::schema::posts;
-use crate::schema::posts::created_at;
 use crate::schema::users;
 
 use self::models::NewPost;
@@ -52,14 +51,7 @@ impl Database {
         })
     }
 
-    pub async fn create_post<'a>(&self, post: NewPost<'a>, claims: &Claims) -> Result<UserPost> {
-        if post.body.is_empty() || post.title.is_empty() || post.user_id.is_empty() {
-            tracing::warn!("Post cannot be empty");
-            return Err(Error::EmptyPost);
-        }
-
-        tracing::info!("Inserting post {post:?}");
-
+    pub async fn get_init_user(&self, claims: &Claims) -> Result<User> {
         use super::schema::users::dsl::*;
         let conn = self.conn.lock().await;
         // Create or update user
@@ -81,11 +73,48 @@ impl Database {
                 e
             })?;
 
+        Ok(user)
+    }
+
+    pub async fn create_comment<'a>(
+        &self,
+        comment: NewComment<'a>,
+        claims: &Claims,
+    ) -> Result<Comment> {
+        use crate::schema::comments::{self, *};
+        let user: User = self.get_init_user(claims).await?;
+
+        let comment: Comment = diesel::insert_into(comments::table)
+            .values(&(
+                post_id.eq_all(comment.post_id),
+                user_id.eq_all(user.user_id),
+                body.eq_all(comment.body),
+            ))
+            .get_result(&*self.conn.lock().await)?;
+
+        Ok(comment)
+    }
+
+    pub async fn create_post<'a>(&self, post: NewPost<'a>, claims: &Claims) -> Result<UserPost> {
+        if post.title.is_empty() {
+            tracing::warn!("Post cannot be empty");
+            return Err(Error::EmptyPost);
+        }
+
+        use crate::schema::posts::*;
+
+        tracing::info!("Inserting post {post:?}");
+
+        let user = self.get_init_user(claims).await?;
         info!("User: {user:#?}");
 
         let post: Post = diesel::insert_into(crate::schema::posts::table)
-            .values(&post)
-            .get_result(&*conn)?;
+            .values(&(
+                user_id.eq_all(user.type_id())),
+                title.eq_all(post.title),
+                body.eq_all(post.body),
+            ))
+            .get_result(&*self.conn.lock().await)?;
 
         Ok(UserPost::new(user, post))
     }
@@ -100,6 +129,8 @@ impl Database {
     }
 
     pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<UserPost>> {
+        use crate::schema::posts;
+        use crate::schema::posts::*;
         let res: Vec<(User, Post)> = users::table
             .inner_join(posts::table)
             .order(created_at.desc())
