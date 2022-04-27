@@ -9,7 +9,7 @@
 <style>
   :global(body) {
     /* background: linear-gradient(var(--primary-color), var(--secondary-color)); */
-    background: linear-gradient(#2e3440, #5e81ac);
+    background-color: #5e81ac;
     background-repeat: no-repeat;
     background-attachment: fixed;
   }

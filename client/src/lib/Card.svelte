@@ -14,25 +14,30 @@
   export let created_at = null;
 
   let title_class =
-    "font-bold font-mono bg-gray-800 text-light p-2 rounded-t-lg " +
+    "font-bold font-mono text-light p-2 rounded-lg " +
     (clickable ? "hover:bg-green-500 hover:text-dark cursor-pointer" : "");
 
-  const body_class =
-    "font-serif bg-dark text-light p-2 flex-grow rounded-b-lg" +
-    (title == null ? " rounded-t-lg" : "");
+  const body_class = "text-light p-2 flex-grow";
 </script>
 
-<div class="my-2 flex items-stretch flex-row">
+<div
+  class="my-5 flex items-stretch flex-row shadow-md shadow-gray-900 bg-dark
+  rounded-lg"
+>
   {#if editable}
     <form
       on:submit|preventDefault={(_) => editable(title, body)}
-      class="m-2 flex flex-col flex-grow shadow-lg shadow-slate-600"
+      class="m-2 flex flex-col flex-grow"
     >
       {#if title != null}
-        <input class={title_class} bind:value={title} placeholder="Title" />
+        <input
+          class={title_class + " bg-gray-800"}
+          bind:value={title}
+          placeholder="Title"
+        />
       {/if}
       <textarea
-        class={body_class}
+        class={body_class + " bg-dark"}
         type="text"
         placeholder="⋯"
         rows="16"
@@ -41,7 +46,7 @@
       <Button text="Submit" type="submit" />
     </form>
   {:else}
-    <div class="m-2 flex flex-col flex-grow shadow-lg shadow-slate-600">
+    <div class="m-2 flex flex-col flex-grow">
       {#if title != null}
         <h2 class={title_class} on:click>
           {title}
@@ -49,24 +54,20 @@
       {/if}
 
       <div class={body_class}>
-        <div class="prose prose-invert prose-emerald prose-headings:sm">
+        <div class="prose prose-invert prose-blue prose-headings:sm">
           <SvelteMarkdown source={body} />
         </div>
       </div>
     </div>
 
-    <div class="flex flex-col items-stretch">
+    <div class="flex flex-col items-stretch rounded-lg m-2 p-2 bg-gray-800">
       {#if user}
-        <div class="bg-dark m-2 p-2 rounded-lg">
-          <Profile {user} />
-        </div>
+        <Profile {user} />
       {/if}
       {#if created_at}
-        <div class="bg-dark m-2 p-2 rounded-lg">
-          <p class="text-light font-semibold text-center">
-            {timeAgo(new Date(created_at + "Z"))}
-          </p>
-        </div>
+        <p class="text-light font-semibold text-center">
+          {timeAgo(new Date(created_at + "Z"))}
+        </p>
       {/if}
     </div>
   {/if}

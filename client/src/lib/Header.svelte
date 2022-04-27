@@ -6,7 +6,7 @@
 </script>
 
 <nav
-  class="shadow-lg flex justify-between items-center text-light bg-dark sticky top-0
+  class="shadow-lg flex justify-between items-center text-light bg-gray-800 sticky top-0
   w-full"
 >
   <ol class="flex justify-start items-center">
