@@ -21,6 +21,4 @@
   }
 </script>
 
-<div class="m-5">
-  <Card title={null} editable={handleSubmit} />
-</div>
+<Card title={null} editable={handleSubmit} />

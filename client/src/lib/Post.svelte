@@ -13,37 +13,28 @@
   let replying = false;
 </script>
 
-<div class="flex flex-col justify-center p-5">
-  <div class="flex flex-grow flex-row items-stretch">
-    <Card
-      title={post.title}
-      body={post.body}
-      clickable={true}
-      on:click={() => (location.href = "/post/" + post.post_id)}
-    />
-    <div class="bg-dark m-2 p-2 w-1/5 rounded-lg">
-      <Profile {user} />
-      {#if post.created_at}
-        <h2 class="text-light text-center">
-          {timeAgo(new Date(post.created_at + "Z"))}
-        </h2>
-      {/if}
-    </div>
-  </div>
+<div class="flex flex-col">
+  <Card
+    title={post.title}
+    body={post.body}
+    clickable={true}
+    {user}
+    created_at={post.created_at}
+    on:click={() => (location.href = "/post/" + post.post_id)}
+  />
 
   {#if detailed}
-    <!-- content here -->
-    <div class="p-5">
+    <hr class="border-dashed m-5 border-gray-600" />
+
+    <div class="mx-10">
+      <!-- content here -->
       {#each comments as { comment, user }}
-        <div class="flex flex-grow flex-row items-stretch">
-          <Card title={comment.title} body={comment.body} />
-          <div class="bg-dark m-2 p-2 w-1/5 rounded-lg">
-            <Profile {user} />
-            <h2 class="text-light text-center">
-              {timeAgo(new Date(comment.created_at + "Z"))}
-            </h2>
-          </div>
-        </div>
+        <Card
+          title={comment.title}
+          body={comment.body}
+          {user}
+          created_at={comment.created_at}
+        />
       {/each}
 
       {#if replying}

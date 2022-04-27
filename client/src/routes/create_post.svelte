@@ -20,5 +20,5 @@
 </script>
 
 <Container>
-  <Card editable={handleSubmit} />
+  <Card editable={handleSubmit} title="" />
 </Container>
