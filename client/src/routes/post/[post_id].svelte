@@ -5,8 +5,9 @@
 
   export let user;
   export let post;
+  export let comments;
 </script>
 
 <Container>
-  <Post {user} {post} />
+  <Post {user} {post} {comments} detailed={true} />
 </Container>

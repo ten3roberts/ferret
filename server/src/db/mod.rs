@@ -1,6 +1,5 @@
 pub mod models;
 
-use std::any::Any;
 use std::{env, sync::Arc};
 
 use crate::auth::Claims;
@@ -76,11 +75,7 @@ impl Database {
         Ok(user)
     }
 
-    pub async fn create_comment<'a>(
-        &self,
-        comment: NewComment<'a>,
-        claims: &Claims,
-    ) -> Result<Comment> {
+    pub async fn create_comment(&self, comment: &NewComment, claims: &Claims) -> Result<Comment> {
         use crate::schema::comments::{self, *};
         let user: User = self.get_init_user(claims).await?;
 
@@ -88,14 +83,14 @@ impl Database {
             .values(&(
                 post_id.eq_all(comment.post_id),
                 user_id.eq_all(user.user_id),
-                body.eq_all(comment.body),
+                body.eq_all(&comment.body),
             ))
             .get_result(&*self.conn.lock().await)?;
 
         Ok(comment)
     }
 
-    pub async fn create_post<'a>(&self, post: NewPost<'a>, claims: &Claims) -> Result<UserPost> {
+    pub async fn create_post(&self, post: &NewPost, claims: &Claims) -> Result<UserPost> {
         if post.title.is_empty() {
             tracing::warn!("Post cannot be empty");
             return Err(Error::EmptyPost);
@@ -110,13 +105,13 @@ impl Database {
 
         let post: Post = diesel::insert_into(crate::schema::posts::table)
             .values(&(
-                user_id.eq_all(user.type_id())),
-                title.eq_all(post.title),
-                body.eq_all(post.body),
+                user_id.eq_all(&user.user_id),
+                title.eq_all(&post.title),
+                body.eq_all(&post.body),
             ))
             .get_result(&*self.conn.lock().await)?;
 
-        Ok(UserPost::new(user, post))
+        Ok(UserPost::new(user, post, vec![]))
     }
 
     pub async fn get_user_posts(&self, user: &str) -> Result<Vec<Post>> {
@@ -139,8 +134,24 @@ impl Database {
 
         Ok(res
             .into_iter()
-            .map(|(user, post)| UserPost::new(user, post))
+            .map(|(user, post)| UserPost::new(user, post, vec![]))
             .collect())
+    }
+
+    pub async fn get_comments(&self, post: i32) -> Result<Vec<UserComment>> {
+        use crate::schema::comments::dsl::*;
+        use crate::schema::*;
+
+        let result: Vec<UserComment> = comments
+            .filter(post_id.eq(post))
+            .order(created_at.asc())
+            .inner_join(users::table)
+            .load::<(Comment, User)>(&*self.conn.lock().await)?
+            .into_iter()
+            .map(|(comment, user)| UserComment { comment, user })
+            .collect();
+
+        Ok(result)
     }
 
     pub async fn get_post(&self, key: i32) -> Result<UserPost> {
@@ -153,7 +164,11 @@ impl Database {
             .first(&*conn)
             .unwrap();
 
-        Ok(UserPost::new(user, post))
+        drop(conn);
+
+        let comments = self.get_comments(post.post_id).await?;
+
+        Ok(UserPost::new(user, post, comments))
     }
 }
 

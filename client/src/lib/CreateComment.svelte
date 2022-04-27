@@ -1,14 +1,16 @@
 <script>
-  import Container from "$lib/Container.svelte";
   import auth from "$lib/auth/service";
   import Card from "$lib/Card.svelte";
 
+  export let post_id;
+
   async function handleSubmit(title, body) {
-    const submit = await fetch("/api/posts", {
+    const submit = await fetch("/api/comments", {
       method: "POST",
       body: JSON.stringify({
         title,
         body,
+        post_id,
         token: await auth.getToken(),
       }),
     }).then((v) => {
@@ -19,6 +21,6 @@
   }
 </script>
 
-<Container>
-  <Card editable={handleSubmit} />
-</Container>
+<div class="m-5">
+  <Card title={null} editable={handleSubmit} />
+</div>

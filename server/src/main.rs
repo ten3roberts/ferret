@@ -12,8 +12,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
-use server::{auth::Claims, db::Database};
+use server::{
+    auth::Claims,
+    db::{models::NewPost, Database, NewComment},
+};
 use std::net::SocketAddr;
 
 #[tokio::main]
@@ -34,6 +36,7 @@ async fn main() -> eyre::Result<()> {
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response))
         .route("/create_post", post(create_post))
+        .route("/create_comment", post(create_comment))
         .route("/posts", get(get_posts))
         .route("/post/:id", get(get_post))
         .layer(Extension(db));
@@ -62,24 +65,28 @@ pub async fn get_posts(db: Extension<Database>) -> impl IntoResponse {
     Ok::<_, db::Error>(posts)
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CreatePost {
-    pub title: String,
-    pub body: String,
+async fn create_comment(
+    db: Extension<Database>,
+    Json(comment): Json<NewComment>,
+    claims: Claims,
+) -> impl IntoResponse {
+    tracing::info!("Creating post. Claims: {claims}");
+
+    let post = serde_json::to_string(&db.create_comment(&comment, &claims).await?).unwrap();
+
+    tracing::info!("User {claims:#?} created new post: {post:#?}");
+
+    Ok::<_, db::Error>(Json(post))
 }
 
 async fn create_post(
     db: Extension<Database>,
-    Json(CreatePost { title, body }): Json<CreatePost>,
+    Json(post): Json<NewPost>,
     claims: Claims,
 ) -> impl IntoResponse {
     tracing::info!("Creating post. Claims: {claims}");
-    let post = db::models::NewPost {
-        title: &title,
-        body: &body,
-    };
 
-    let post = serde_json::to_string(&db.create_post(post, &claims).await?).unwrap();
+    let post = serde_json::to_string(&db.create_post(&post, &claims).await?).unwrap();
 
     tracing::info!("User {claims:#?} created new post: {post:#?}");
 

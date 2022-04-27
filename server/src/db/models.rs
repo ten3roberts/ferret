@@ -1,5 +1,3 @@
-use std::primitive;
-
 use crate::schema::*;
 use chrono::NaiveDateTime;
 use diesel::Queryable;
@@ -29,27 +27,34 @@ pub struct Post {
 
 #[derive(Serialize, PartialEq)]
 pub struct UserPost {
-    user: User,
-    post: Post,
+    pub user: User,
+    pub post: Post,
+    pub comments: Vec<UserComment>,
 }
 
 impl UserPost {
-    pub fn new(user: User, post: Post) -> Self {
-        Self { user, post }
+    pub fn new(user: User, post: Post, comments: Vec<UserComment>) -> Self {
+        Self {
+            user,
+            post,
+            comments,
+        }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Insertable)]
 #[table_name = "posts"]
-pub struct NewPost<'a> {
-    pub title: &'a str,
-    pub body: &'a str,
+pub struct NewPost {
+    pub title: String,
+    pub body: String,
 }
 
 #[derive(
     Identifiable, Associations, Debug, Clone, PartialEq, Deserialize, Serialize, Queryable,
 )]
 #[primary_key(comment_id)]
+#[belongs_to(Post)]
+#[belongs_to(User)]
 pub struct Comment {
     pub comment_id: i32,
     pub post_id: i32,
@@ -58,9 +63,15 @@ pub struct Comment {
     pub created_at: NaiveDateTime,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UserComment {
+    pub comment: Comment,
+    pub user: User,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Insertable)]
 #[table_name = "comments"]
-pub struct NewComment<'a> {
+pub struct NewComment {
     pub post_id: i32,
-    pub body: &'a str,
+    pub body: String,
 }
