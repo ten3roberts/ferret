@@ -18,14 +18,22 @@ use server::{
     db::{models::NewPost, Database, NewComment},
 };
 use std::net::SocketAddr;
+use tracing::instrument;
+use tracing_error::ErrorLayer;
+use tracing_subscriber::{
+    prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Registry,
+};
 
 #[tokio::main]
-async fn main() -> eyre::Result<()> {
+#[instrument]
+async fn main() -> color_eyre::Result<()> {
     // initialize tracing
-    tracing_subscriber::fmt::init();
-    if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "server=debug,tower_http=debug")
-    }
+    color_eyre::install()?;
+    Registry::default()
+        .with(tracing_tree::HierarchicalLayer::new(2))
+        .with(ErrorLayer::default())
+        .init();
+
     tracing::info!("Running server");
 
     let db = Database::open()?;
