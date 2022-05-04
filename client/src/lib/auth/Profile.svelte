@@ -1,13 +1,9 @@
 <script>
   export let user;
   import auth from "./service";
-  /* export let displayName; */
-  /* export let photoURL; */
-  /* export let uid; */
-  /* <button on:click={auth.logout}>Logout</button> */
 </script>
 
-<div class="flex justify-evenly gap-2 items-center m-2">
+<div class="flex justify-start gap-2 items-center m-2">
   {#if user.picture}
     <img
       src={user.picture}
@@ -15,5 +11,5 @@
       alt="profilePicture"
     />
   {/if}
-  <h3 class="text-light">{user.name}</h3>
+  <a href={"/user/" + user.user_id} class="text-light">{user.name}</a>
 </div>

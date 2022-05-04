@@ -1,5 +1,6 @@
 use hyper::Body;
 use reqwest::StatusCode;
+use serde_json::json;
 pub use server::*;
 mod auth;
 
@@ -39,6 +40,7 @@ async fn main() -> eyre::Result<()> {
         .route("/comment/:id", delete(delete_comment))
         .route("/create_post", post(create_post))
         .route("/create_comment", post(create_comment))
+        .route("/user/:id", get(get_user))
         .route("/posts", get(get_posts))
         .route("/post/:id", get(get_post))
         .layer(Extension(db));
@@ -57,6 +59,18 @@ pub async fn get_post(Path(id): Path<i32>, db: Extension<Database>) -> impl Into
     let posts = serde_json::to_string(&db.get_post(id).await?).unwrap();
 
     Ok::<_, db::Error>(posts)
+}
+
+pub async fn get_user(db: Extension<Database>, Path(user_id): Path<String>) -> impl IntoResponse {
+    tracing::info!("Posts");
+    let (user, posts) = db.get_user_posts(&user_id, 20, 0).await?;
+
+    Ok::<_, db::Error>(Json(json! (
+        {
+            "user": user,
+            "posts": posts,
+        }
+    )))
 }
 
 pub async fn get_posts(db: Extension<Database>) -> impl IntoResponse {

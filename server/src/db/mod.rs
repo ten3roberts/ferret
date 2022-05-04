@@ -11,6 +11,7 @@ pub use self::models::*;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Redirect;
+use serde_json::json;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -126,13 +127,18 @@ impl Database {
         Ok(UserPost::new(user, post, vec![]))
     }
 
-    pub async fn get_user_posts(&self, user: &str) -> Result<Vec<Post>> {
+    pub async fn get_user_posts(
+        &self,
+        user: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(User, Vec<Post>)> {
         use crate::schema::users::dsl::*;
 
         let conn = self.conn.lock().await;
         let user: User = users.find(user).first(&*conn).unwrap();
-        let posts: Vec<Post> = Post::belonging_to(&user).load(&*conn).unwrap();
-        Ok(posts)
+        let posts: Vec<Post> = Post::belonging_to(&user).limit(limit).load(&*conn).unwrap();
+        Ok((user, posts))
     }
 
     #[tracing::instrument(skip(self))]

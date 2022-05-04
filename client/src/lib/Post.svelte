@@ -10,6 +10,7 @@
 
   export let post;
   export let user;
+  export let show_user = true;
   export let comments = [];
   export let detailed = false;
   let replying = false;
@@ -49,11 +50,11 @@
     title={post.title}
     body={post.body}
     clickable={true}
-    {user}
+    user={show_user ? user : null}
     created_at={post.created_at}
     on:click={() => (location.href = "/post/" + post.post_id)}
   >
-    {#if $isAuthenticated && $cur_user.sub == user.user_id}
+    {#if detailed && $isAuthenticated && $cur_user.sub == user.user_id}
       <div class="flex flex-col justify-start">
         <Button text="Delete" on:click={(_) => del_post(post.post_id)} />
       </div>
@@ -67,7 +68,7 @@
         <Card
           title={comment.title}
           body={comment.body}
-          {user}
+          user={show_user ? user : null}
           created_at={comment.created_at}
         >
           {#if $isAuthenticated && $cur_user.sub == user.user_id}
