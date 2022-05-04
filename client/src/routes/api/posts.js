@@ -30,3 +30,14 @@ export async function get() {
     method: "GET",
   })
 }
+
+export async function del({ request }) {
+  let { id, token } = await request.json()
+  console.log("deleting post " + id)
+  const response = await fetch(backend_url + "/post/" + id, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", "Authorization": "Bearer " + token }
+  })
+
+  return response
+}

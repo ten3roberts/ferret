@@ -3,10 +3,14 @@ import { user, isAuthenticated, popupOpen } from "../stores";
 import config from "./config";
 
 let _client = null;
+let _user = null;
+let _authenticated = null;
 
 
 async function createClient() {
-  if (_client !== null) { return _client }
+  if (_client !== null) {
+    return { client: _client, authenticated: _authenticated, user: _user }
+  }
 
   console.log(config);
   _client = await createAuth0Client({
@@ -16,21 +20,27 @@ async function createClient() {
     useRefreshTokens: true,
   });
 
-  isAuthenticated.set(await _client.isAuthenticated());
-  user.set(await _client.getUser());
+  _authenticated = await _client.isAuthenticated()
+  isAuthenticated.set(_authenticated);
+
+  _user = await _client.getUser()
+
+  user.set(_user);
   console.log("Auth: " + config);
 
-  return _client;
+  return { client: _client, authenticated: _authenticated, user: _user };
 }
 
 async function getToken() {
-  let client = await createClient()
+  let { client } = await createClient()
   const token = await client.getTokenSilently();
   return token
 }
 
 async function login(options) {
-  let client = await createClient()
+  let { client } = await createClient()
+
+  console.log(`Client: ${client}`)
   popupOpen.set(true);
 
   try {
@@ -47,7 +57,8 @@ async function login(options) {
 }
 
 async function logout() {
-  let client = await createClient()
+  let { client } = await createClient()
+  console.log(`Client: ${client}`)
   return client.logout();
 }
 

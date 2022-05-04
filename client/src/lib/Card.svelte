@@ -40,24 +40,23 @@
         class={body_class + " bg-dark"}
         type="text"
         placeholder="⋯"
-        rows="16"
+        rows="8"
         bind:value={body}
       />
       <Button text="Submit" type="submit" />
     </form>
   {:else}
-    <div class="m-2 flex flex-col flex-grow">
+    <div class="m-2 flex flex-col flex-grow justify-end">
       {#if title != null}
         <h2 class={title_class} on:click>
           {title}
         </h2>
       {/if}
-
       <div class={body_class}>
-        <div class="prose prose-invert prose-blue prose-headings:sm">
-          <SvelteMarkdown source={body} />
-        </div>
+        <SvelteMarkdown source={body} />
+        <div class="prose prose-invert prose-blue prose-headings:sm" />
       </div>
+      <slot />
     </div>
 
     <div class="flex flex-col items-stretch rounded-lg m-2 p-2 bg-gray-800">

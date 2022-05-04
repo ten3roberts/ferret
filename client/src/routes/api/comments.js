@@ -23,3 +23,13 @@ export async function post({ request }) {
     }
   };
 }
+
+export async function del({ request }) {
+  let { id, token } = await request.json()
+  const response = await fetch(backend_url + "/comment/" + id, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", "Authorization": "Bearer " + token }
+  })
+
+  return response
+}

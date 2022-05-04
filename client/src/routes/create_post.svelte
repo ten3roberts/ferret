@@ -1,6 +1,7 @@
 <script>
   import Container from "$lib/Container.svelte";
   import auth from "$lib/auth/service";
+  import { isAuthenticated } from "$lib/stores";
   import Card from "$lib/Card.svelte";
 
   async function handleSubmit(title, body) {
@@ -20,5 +21,7 @@
 </script>
 
 <Container>
-  <Card editable={handleSubmit} title="" />
+  {#if $isAuthenticated}
+    <Card editable={handleSubmit} title="" />
+  {/if}
 </Container>

@@ -8,6 +8,6 @@ export const posts = writable([{
 export const backend_url = "http://127.0.0.1:13000"
 
 export const isAuthenticated = writable(false);
-export const user = writable({});
+export const user: Writable<User> = writable({});
 export const popupOpen = writable(false);
 export const error = writable();

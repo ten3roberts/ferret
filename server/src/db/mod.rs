@@ -3,12 +3,14 @@ pub mod models;
 use std::{env, sync::Arc};
 
 use crate::auth::Claims;
+use crate::schema;
 use crate::schema::users;
 
 use self::models::NewPost;
 pub use self::models::*;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::response::Redirect;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -31,13 +33,23 @@ pub enum Error {
     EmptyPost,
     #[error("Failed to connect to database")]
     ConnectionError(#[from] diesel::result::ConnectionError),
+    #[error("User is not authorized for this action")]
+    Unauthorized,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Reason: {self}")).into_response()
+        let status = match self {
+            Error::DbError(diesel::result::Error::NotFound) => StatusCode::NOT_FOUND,
+            Error::DbError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::EmptyPost => StatusCode::BAD_REQUEST,
+            Error::ConnectionError(_) => StatusCode::BAD_GATEWAY,
+            Error::Unauthorized => StatusCode::UNAUTHORIZED,
+        };
+
+        (status, format!("Reason: {self}")).into_response()
     }
 }
 
@@ -123,6 +135,7 @@ impl Database {
         Ok(posts)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<UserPost>> {
         use crate::schema::posts;
         use crate::schema::posts::*;
@@ -152,6 +165,45 @@ impl Database {
             .collect();
 
         Ok(result)
+    }
+
+    #[tracing::instrument(skip(self, claims))]
+    pub async fn delete_post(&self, id: i32, claims: Claims) -> Result<Redirect> {
+        tracing::info!("Deleting post");
+        let conn = self.conn.lock().await;
+
+        use schema::posts::dsl::*;
+        use schema::users::dsl::*;
+
+        let comment: Post = posts.find(id).first(&*conn)?;
+        let user: User = users.find(&comment.user_id).first(&*conn)?;
+
+        if user.user_id != claims.sub {
+            return Err(Error::Unauthorized);
+        }
+
+        diesel::delete(posts.find(id)).execute(&*conn).unwrap();
+        tracing::info!("Here");
+
+        dbg!(Ok(Redirect::to("/")))
+    }
+
+    pub async fn delete_comment(&self, id: i32, claims: Claims) -> Result<Redirect> {
+        let conn = self.conn.lock().await;
+
+        use schema::comments::dsl::*;
+        use schema::users::dsl::*;
+
+        let comment: Comment = comments.find(id).first(&*conn)?;
+        let user: User = users.find(&comment.user_id).first(&*conn)?;
+
+        if user.user_id != claims.sub {
+            return Err(Error::Unauthorized);
+        }
+
+        diesel::delete(comments.find(id)).execute(&*conn)?;
+
+        Ok(Redirect::to(&(format!("/post/{}", comment.post_id))))
     }
 
     pub async fn get_post(&self, key: i32) -> Result<UserPost> {

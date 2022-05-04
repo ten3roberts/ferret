@@ -9,7 +9,7 @@ use axum::{
     http::{Request, Response},
     middleware::{self, Next},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use server::{
@@ -35,6 +35,8 @@ async fn main() -> eyre::Result<()> {
         // .layer(middleware::from_fn(print_request_response))
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response))
+        .route("/post/:id", delete(delete_post))
+        .route("/comment/:id", delete(delete_comment))
         .route("/create_post", post(create_post))
         .route("/create_comment", post(create_comment))
         .route("/posts", get(get_posts))
@@ -91,6 +93,33 @@ async fn create_post(
     tracing::info!("User {claims:#?} created new post: {post:#?}");
 
     Ok::<_, db::Error>(Json(post))
+}
+
+async fn delete_post(
+    db: Extension<Database>,
+    Path(id): Path<i32>,
+    claims: Claims,
+) -> impl IntoResponse {
+    tracing::info!("Deleting post: {id}");
+    let res = db.delete_post(id, claims).await;
+    if let Err(err) = &res {
+        tracing::warn!("Failed to delete post: {err}")
+    }
+
+    res
+}
+
+async fn delete_comment(
+    db: Extension<Database>,
+    Path(id): Path<i32>,
+    claims: Claims,
+) -> impl IntoResponse {
+    tracing::info!("Deleting comment: {id}");
+    let res = db.delete_comment(id, claims).await;
+    if let Err(err) = &res {
+        tracing::warn!("Failed to delete post: {err}")
+    }
+    res
 }
 
 async fn print_request_response(

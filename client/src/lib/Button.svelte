@@ -4,7 +4,7 @@
 </script>
 
 <button
-  class="bg-gray-800 text-light py-2 px-3 hover:bg-green-500 hover:text-dark m-1 rounded-full"
+  class="bg-gray-800 w-fit text-light py-2 px-3 hover:bg-green-500 hover:text-dark m-1 rounded-full"
   {type}
   on:click>{text}</button
 >
