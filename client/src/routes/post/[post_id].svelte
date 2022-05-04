@@ -6,8 +6,9 @@
   export let user;
   export let post;
   export let comments;
+  export let solved_by;
 </script>
 
 <Container>
-  <Post {user} {post} {comments} detailed={true} />
+  <Post {user} {post} {comments} {solved_by} detailed={true} />
 </Container>

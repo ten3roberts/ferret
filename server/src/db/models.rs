@@ -30,6 +30,14 @@ pub struct UserPost {
     pub user: User,
     pub post: Post,
     pub comments: Vec<UserComment>,
+    pub solved_by: Option<i32>,
+}
+
+#[derive(Associations, Debug, Clone, Deserialize, Queryable, Serialize, Insertable)]
+#[belongs_to(Post)]
+pub struct SolvedMeta {
+    pub post_id: i32,
+    pub comment_id: i32,
 }
 
 impl UserPost {
@@ -38,7 +46,13 @@ impl UserPost {
             user,
             post,
             comments,
+            solved_by: None,
         }
+    }
+
+    pub fn solved_by(mut self, solved_metas: Option<SolvedMeta>) -> Self {
+        self.solved_by = solved_metas.map(|v| v.comment_id);
+        self
     }
 }
 

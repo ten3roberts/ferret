@@ -31,6 +31,17 @@ export async function get() {
   })
 }
 
+/** @type {import('./posts').RequestHandler} */
+export async function patch({ request }) {
+  let { post_id, comment_id, token } = await request.json();
+  return fetch(backend_url + "/post/mark_solved", {
+    method: "PATCH",
+    headers: { "content-type": "application/json", "Authorization": "Bearer " + token },
+    body: JSON.stringify({ post_id, comment_id })
+  })
+
+}
+
 export async function del({ request }) {
   let { id, token } = await request.json()
   console.log("deleting post " + id)

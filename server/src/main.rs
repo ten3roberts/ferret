@@ -1,3 +1,5 @@
+use color_eyre::Report;
+use eyre::Context;
 use hyper::Body;
 use reqwest::StatusCode;
 use serde_json::json;
@@ -10,12 +12,12 @@ use axum::{
     http::{Request, Response},
     middleware::{self, Next},
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{delete, get, patch, post},
     Json, Router,
 };
 use server::{
     auth::Claims,
-    db::{models::NewPost, Database, NewComment},
+    db::{models::NewPost, Database, NewComment, SolvedMeta},
 };
 use std::net::SocketAddr;
 use tracing::instrument;
@@ -41,9 +43,7 @@ async fn main() -> color_eyre::Result<()> {
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        // .layer(middleware::from_fn(print_request_response))
         .layer(tower_http::trace::TraceLayer::new_for_http())
-        .layer(middleware::from_fn(print_request_response))
         .route("/post/:id", delete(delete_post))
         .route("/comment/:id", delete(delete_comment))
         .route("/create_post", post(create_post))
@@ -51,6 +51,7 @@ async fn main() -> color_eyre::Result<()> {
         .route("/user/:id", get(get_user))
         .route("/posts", get(get_posts))
         .route("/post/:id", get(get_post))
+        .route("/post/mark_solved", patch(mark_solved))
         .layer(Extension(db));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 13000));
@@ -144,41 +145,20 @@ async fn delete_comment(
     res
 }
 
-async fn print_request_response(
-    req: Request<Body>,
-    next: Next<Body>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let (parts, body) = req.into_parts();
-    let bytes = buffer_and_print("request", body).await?;
-    let req = Request::from_parts(parts, Body::from(bytes));
+async fn mark_solved(
+    db: Extension<Database>,
+    Json(solved): Json<SolvedMeta>,
+    claims: Claims,
+) -> impl IntoResponse {
+    let res = db
+        .mark_solved(&claims, solved.post_id, solved.comment_id)
+        .await;
 
-    let res = next.run(req).await;
-
-    let (parts, body) = res.into_parts();
-    let bytes = buffer_and_print("response", body).await?;
-    let res = Response::from_parts(parts, Body::from(bytes));
-
-    Ok(res)
-}
-
-async fn buffer_and_print<B>(direction: &str, body: B) -> Result<Bytes, (StatusCode, String)>
-where
-    B: axum::body::HttpBody<Data = Bytes> + Sized,
-    B::Error: std::fmt::Display,
-{
-    let bytes = match hyper::body::to_bytes(body).await {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                format!("failed to read {} body: {}", direction, err),
-            ));
-        }
-    };
-
-    if let Ok(body) = std::str::from_utf8(&bytes) {
-        tracing::debug!("{} body = {:?}", direction, body);
+    if let Err(err) = &res {
+        tracing::warn!("Failed to mark solved: {err}")
     }
 
-    Ok(bytes)
+    tracing::info!("Marked post as solved: {res:?}");
+
+    res
 }

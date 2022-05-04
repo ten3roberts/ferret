@@ -1,5 +1,6 @@
 <script>
   import SvelteMarkdown from "svelte-markdown";
+  import { exclude_internal_props } from "svelte/internal";
   import Profile from "./auth/Profile.svelte";
 
   import Button from "./Button.svelte";
@@ -9,6 +10,7 @@
   export let body = "";
   export let editable = null;
   export let clickable = false;
+  export let background = "bg-dark";
 
   export let user = null;
   export let created_at = null;
@@ -21,8 +23,8 @@
 </script>
 
 <div
-  class="my-5 flex items-stretch flex-row shadow-md shadow-gray-900 bg-dark
-  rounded-lg"
+  class={`my-5 flex items-stretch flex-row shadow-md shadow-gray-900 ${background}
+  rounded-lg`}
 >
   {#if editable}
     <form
@@ -46,7 +48,7 @@
       <Button text="Submit" type="submit" />
     </form>
   {:else}
-    <div class="m-2 flex flex-col flex-grow justify-end">
+    <div class="m-2 flex flex-col flex-grow justify-end bg-dark rounded-lg p-1">
       {#if title != null}
         <h2 class={title_class} on:click>
           {title}
@@ -56,7 +58,9 @@
         <SvelteMarkdown source={body} />
         <div class="prose prose-invert prose-blue prose-headings:sm" />
       </div>
-      <slot />
+      <div class="flex flex-row">
+        <slot />
+      </div>
     </div>
 
     <div class="flex flex-col items-stretch rounded-lg m-2 p-2 bg-gray-800">

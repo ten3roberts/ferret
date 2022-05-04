@@ -11,7 +11,7 @@ pub use self::models::*;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Redirect;
-use serde_json::json;
+use diesel::associations::HasTable;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -133,12 +133,17 @@ impl Database {
         limit: i64,
         offset: i64,
     ) -> Result<(User, Vec<Post>)> {
+        use crate::schema::posts::dsl::*;
         use crate::schema::users::dsl::*;
 
         let conn = self.conn.lock().await;
         let user: User = users.find(user).first(&*conn).unwrap();
-        let posts: Vec<Post> = Post::belonging_to(&user).limit(limit).load(&*conn).unwrap();
-        Ok((user, posts))
+        let res: Vec<Post> = Post::belonging_to(&user)
+            .order(created_at.desc())
+            .limit(limit)
+            .load(&*conn)
+            .unwrap();
+        Ok((user, res))
     }
 
     #[tracing::instrument(skip(self))]
@@ -195,23 +200,31 @@ impl Database {
     }
 
     pub async fn delete_comment(&self, id: i32, claims: Claims) -> Result<Redirect> {
-        let conn = self.conn.lock().await;
-
         use schema::comments::dsl::*;
+
+        let comment: Comment = comments.find(id).first(&*self.conn.lock().await)?;
+        let user: User = users
+            .find(&comment.user_id)
+            .first(&*self.conn.lock().await)?;
+
         use schema::users::dsl::*;
 
-        let comment: Comment = comments.find(id).first(&*conn)?;
-        let user: User = users.find(&comment.user_id).first(&*conn)?;
+        self.authorize(&claims, user).await?;
 
-        if user.user_id != claims.sub {
-            return Err(Error::Unauthorized);
-        }
-
-        diesel::delete(comments.find(id)).execute(&*conn)?;
+        diesel::delete(comments.find(id)).execute(&*self.conn.lock().await)?;
 
         Ok(Redirect::to(&(format!("/post/{}", comment.post_id))))
     }
 
+    pub async fn authorize(&self, claims: &Claims, owner: User) -> Result<()> {
+        if owner.user_id != claims.sub {
+            Err(Error::Unauthorized)
+        } else {
+            Ok(())
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn get_post(&self, key: i32) -> Result<UserPost> {
         use crate::schema::posts::dsl::*;
         let conn = self.conn.lock().await;
@@ -226,7 +239,39 @@ impl Database {
 
         let comments = self.get_comments(post.post_id).await?;
 
-        Ok(UserPost::new(user, post, comments))
+        use crate::schema::solved_metas::dsl::*;
+        let solved: Option<SolvedMeta> = match solved_metas
+            .find(post.post_id)
+            .first(&*self.conn.lock().await)
+        {
+            Ok(comment) => Some(comment),
+            Err(diesel::result::Error::NotFound) => None,
+            Err(e) => return Err(e.into()),
+        };
+
+        Ok(UserPost::new(user, post, comments).solved_by(solved))
+    }
+
+    pub async fn mark_solved(&self, claims: &Claims, post: i32, comment: i32) -> Result<()> {
+        use crate::schema::posts::dsl::posts;
+        use crate::schema::solved_metas;
+        use crate::schema::solved_metas::*;
+        use crate::schema::users::dsl::users;
+        let subj: Post = posts.find(post).first(&*self.conn.lock().await)?;
+        let owner = users.find(subj.user_id).first(&*self.conn.lock().await)?;
+        self.authorize(claims, owner).await?;
+
+        diesel::insert_into(solved_metas::table)
+            .values(&SolvedMeta {
+                post_id: post,
+                comment_id: comment,
+            })
+            .on_conflict(post_id)
+            .do_update()
+            .set(comment_id.eq(comment))
+            .execute(&*self.conn.lock().await)?;
+
+        Ok(())
     }
 }
 
