@@ -166,12 +166,13 @@ async fn mark_solved(
 
 #[derive(Debug, Serialize, Deserialize)]
 struct FindParams {
-    text: String,
+    #[serde(rename = "searchQuery")]
+    search_query: String,
 }
 async fn find_posts(
     db: Extension<Database>,
     Query(params): Query<FindParams>,
 ) -> impl IntoResponse {
-    let posts = db.find_posts(&params.text).await?;
+    let posts = db.find_posts(&params.search_query).await?;
     Ok::<_, db::Error>(Json(json!({ "posts": posts })))
 }

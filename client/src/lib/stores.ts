@@ -1,4 +1,5 @@
-import { writable, derived } from "svelte/store"
+import { page } from "$app/stores";
+import { writable, derived, type Writable } from "svelte/store"
 
 export const posts = writable([{
   title: "How do I create a post?",
@@ -9,5 +10,6 @@ export const backend_url = "http://127.0.0.1:13000"
 
 export const isAuthenticated = writable(false);
 export const user: Writable<User> = writable({});
+export const searchQuery: Writable<string> = writable()
 export const popupOpen = writable(false);
 export const error = writable();

@@ -1,11 +1,15 @@
 <script>
-  import Button from "./Button.svelte";
+  import { page } from "$app/stores";
 
-  export let text = "";
+  import Button from "./Button.svelte";
+  import { searchQuery } from "./stores";
+
+  searchQuery.set($page.url.searchParams.get("searchQuery"));
   function search() {
     console.log("Searching");
+    let search = $searchQuery;
     const params = new URLSearchParams({
-      text,
+      searchQuery: search,
     });
 
     const url = `/search?${params}`;
@@ -18,7 +22,7 @@
   <input
     class="bg-dark text-light rounded-md p-2"
     placeholder="Search"
-    bind:value={text}
+    bind:value={$searchQuery}
   />
   <Button text="Search" type="submit" />
 </form>
