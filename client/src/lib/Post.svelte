@@ -40,7 +40,7 @@
     console.log("Deleting post");
     let token = await auth.getToken();
 
-    fetch("/api/posts", {
+    await fetch("/api/posts", {
       method: "DELETE",
       body: JSON.stringify({ id, token }),
     });
