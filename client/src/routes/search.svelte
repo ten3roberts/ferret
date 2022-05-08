@@ -5,3 +5,5 @@
 </script>
 
 <Posts {posts} />
+
+<h2 class="text-lg text-center">Found {posts.length} matches</h2>

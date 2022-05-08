@@ -33,7 +33,12 @@ async fn main() -> color_eyre::Result<()> {
     // initialize tracing
     color_eyre::install()?;
     Registry::default()
-        .with(tracing_tree::HierarchicalLayer::new(2))
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(
+            tracing_tree::HierarchicalLayer::new(2)
+                .with_targets(true)
+                .with_bracketed_fields(true),
+        )
         .with(ErrorLayer::default())
         .init();
 
@@ -98,11 +103,9 @@ async fn create_comment(
 ) -> impl IntoResponse {
     tracing::info!("Creating post. Claims: {claims}");
 
-    let post = db.create_comment(&comment, &claims).await?;
+    let comment = db.create_comment(&comment, &claims).await?;
 
-    tracing::info!("User {claims:#?} created new post: {post:#?}");
-
-    Ok::<_, db::Error>(Json(post))
+    Ok::<_, db::Error>(Json(comment))
 }
 
 async fn create_post(
@@ -119,6 +122,7 @@ async fn create_post(
     Ok::<_, db::Error>(Json(post))
 }
 
+#[tracing::instrument(skip(db))]
 async fn delete_post(
     db: Extension<Database>,
     Path(id): Path<i32>,
@@ -127,7 +131,9 @@ async fn delete_post(
     tracing::info!("Deleting post: {id}");
     let res = db.delete_post(id, claims).await;
     if let Err(err) = &res {
-        tracing::warn!("Failed to delete post: {err}")
+        println!("Failed to delete post: {err}")
+    } else {
+        println!("Deleted post: {id}")
     }
 
     res

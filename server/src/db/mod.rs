@@ -124,19 +124,23 @@ impl Database {
         Ok(result)
     }
 
-    pub async fn create_comment(&self, comment: &NewComment, claims: &Claims) -> Result<Comment> {
+    pub async fn create_comment(
+        &self,
+        comment: &NewComment,
+        claims: &Claims,
+    ) -> Result<UserComment> {
         use crate::schema::comments::{self, *};
         let user: User = self.get_init_user(claims).await?;
 
         let comment: Comment = diesel::insert_into(comments::table)
             .values(&(
                 post_id.eq_all(comment.post_id),
-                user_id.eq_all(user.user_id),
+                user_id.eq_all(&user.user_id),
                 body.eq_all(&comment.body),
             ))
             .get_result(&*self.conn.lock().await)?;
 
-        Ok(comment)
+        Ok(UserComment { comment, user })
     }
 
     pub async fn create_post(&self, post: &NewPost, claims: &Claims) -> Result<UserPost> {

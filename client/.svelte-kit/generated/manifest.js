@@ -4,7 +4,7 @@ const c = [
 	() => import("../../src/routes/index.svelte"),
 	() => import("../../src/routes/create_post.svelte"),
 	() => import("../../src/routes/search.svelte"),
-	() => import("../../src/routes/Post.svelte"),
+	() => import("../../src/routes/about.svelte"),
 	() => import("../../src/routes/post/[post_id].svelte"),
 	() => import("../../src/routes/user/[user_id].svelte")
 ];
@@ -21,8 +21,8 @@ export const routes = [
 	// src/routes/search.svelte
 	[/^\/search\/?$/, [c[0], c[4]], [c[1]], null, 'search'],
 
-	// src/routes/Post.svelte
-	[/^\/Post\/?$/, [c[0], c[5]], [c[1]]],
+	// src/routes/about.svelte
+	[/^\/about\/?$/, [c[0], c[5]], [c[1]]],
 
 	// src/routes/post/[post_id].svelte
 	[/^\/post\/([^/]+?)\/?$/, [c[0], c[6]], [c[1]], (m) => ({ post_id: d(m[1])}), 'post/[post_id]'],

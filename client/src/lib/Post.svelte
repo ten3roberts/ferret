@@ -7,6 +7,8 @@
   import Button from "./Button.svelte";
   import CreateComment from "./CreateComment.svelte";
   import auth from "./auth/service";
+  import Container from "./Container.svelte";
+  import { stringify } from "postcss";
 
   export let post;
   export let user;
@@ -37,27 +39,23 @@
   async function del_post(id) {
     console.log("Deleting post");
     let token = await auth.getToken();
-    console.log("Got token");
+
     fetch("/api/posts", {
       method: "DELETE",
       body: JSON.stringify({ id, token }),
-    }).then((v) => {
-      console.log("got: " + v.ok);
-      if (v.redirected) {
-        location.href = v.url;
-      }
     });
+
+    location.href = "/";
   }
 
   async function del_comment(id) {
-    fetch("/api/comments", {
+    const response = await fetch("/api/comments", {
       method: "DELETE",
       body: JSON.stringify({ id, token: await auth.getToken() }),
-    }).then((v) => {
-      if (v.redirected) {
-        location.href = v.url;
-      }
     });
+    if (response.ok) {
+      comments = comments.filter((v) => v.comment.comment_id != id);
+    }
   }
   $: owner = $isAuthenticated && $cur_user.sub == user.user_id;
 </script>
@@ -110,7 +108,13 @@
 
       {#if replying}
         <Button text="Discard" on:click={(_) => (replying = false)} />
-        <CreateComment post_id={post.post_id} />
+        <CreateComment
+          post_id={post.post_id}
+          on_create={(v) => {
+            replying = false;
+            comments = [...comments, v];
+          }}
+        />
       {:else}
         <Button text="Reply" on:click={(_) => (replying = true)} />
       {/if}

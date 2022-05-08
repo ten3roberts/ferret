@@ -3,7 +3,7 @@
   import Button from "./Button.svelte";
   import Search from "./Search.svelte";
 
-  const routes = ["About", "Home"];
+  const routes = ["About"];
 </script>
 
 <nav

@@ -50,5 +50,6 @@ export async function del({ request }) {
     headers: { "content-type": "application/json", "Authorization": "Bearer " + token }
   })
 
-  return response
+  console.log("Got: " + response.status + ";" + response.headers)
+  return { status: response.status, headers: response.headers }
 }
