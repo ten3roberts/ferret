@@ -19,7 +19,7 @@
     "font-bold font-mono text-light p-2 rounded-lg " +
     (clickable ? "hover:bg-green-500 hover:text-dark cursor-pointer" : "");
 
-  const body_class = "text-light p-2 flex-grow";
+  const body_class = "w-full text-light p-2 flex-grow";
 </script>
 
 <div
@@ -55,8 +55,11 @@
         </h2>
       {/if}
       <div class={body_class}>
-        <SvelteMarkdown source={body} />
-        <div class="prose prose-invert prose-blue prose-headings:sm" />
+        <article
+          class="w-full prose prose-invert prose-img:rounded-lg prose-blue prose-headings:sm"
+        >
+          <SvelteMarkdown source={body} />
+        </article>
       </div>
       <div class="flex flex-row">
         <slot />

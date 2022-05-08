@@ -2,13 +2,14 @@ use color_eyre::Report;
 use eyre::Context;
 use hyper::Body;
 use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 pub use server::*;
 mod auth;
 
 use axum::{
     body::Bytes,
-    extract::{Extension, Path},
+    extract::{Extension, Path, Query},
     http::{Request, Response},
     middleware::{self, Next},
     response::IntoResponse,
@@ -52,6 +53,7 @@ async fn main() -> color_eyre::Result<()> {
         .route("/posts", get(get_posts))
         .route("/post/:id", get(get_post))
         .route("/post/mark_solved", patch(mark_solved))
+        .route("/search/", get(find_posts))
         .layer(Extension(db));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 13000));
@@ -84,10 +86,9 @@ pub async fn get_user(db: Extension<Database>, Path(user_id): Path<String>) -> i
 
 pub async fn get_posts(db: Extension<Database>) -> impl IntoResponse {
     tracing::info!("Posts");
-    let posts = serde_json::to_string(&db.get_top_posts(20).await?).unwrap();
-    tracing::info!("Posts: {posts}");
+    let posts = db.get_top_posts(20).await?;
 
-    Ok::<_, db::Error>(posts)
+    Ok::<_, db::Error>(Json(posts))
 }
 
 async fn create_comment(
@@ -97,7 +98,7 @@ async fn create_comment(
 ) -> impl IntoResponse {
     tracing::info!("Creating post. Claims: {claims}");
 
-    let post = serde_json::to_string(&db.create_comment(&comment, &claims).await?).unwrap();
+    let post = db.create_comment(&comment, &claims).await?;
 
     tracing::info!("User {claims:#?} created new post: {post:#?}");
 
@@ -161,4 +162,16 @@ async fn mark_solved(
     tracing::info!("Marked post as solved: {res:?}");
 
     res
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FindParams {
+    text: String,
+}
+async fn find_posts(
+    db: Extension<Database>,
+    Query(params): Query<FindParams>,
+) -> impl IntoResponse {
+    let posts = db.find_posts(&params.text).await?;
+    Ok::<_, db::Error>(Json(json!({ "posts": posts })))
 }

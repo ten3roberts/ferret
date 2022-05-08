@@ -88,6 +88,42 @@ impl Database {
         Ok(user)
     }
 
+    pub async fn find_posts(&self, text: &str) -> Result<Vec<UserPost>> {
+        const PAGE_COUNT: i64 = 64;
+
+        let conn = self.conn.lock().await;
+        let text = text.to_lowercase();
+
+        use crate::schema::posts::dsl::*;
+        use crate::schema::users::dsl::*;
+        let mut result = Vec::new();
+
+        for page in 0.. {
+            let res = posts
+                .offset(page * PAGE_COUNT)
+                .limit(PAGE_COUNT)
+                .load::<Post>(&*conn)?
+                .into_iter()
+                .filter(|post| {
+                    post.title.to_lowercase().contains(&text)
+                        || post.body.to_lowercase().contains(&text)
+                })
+                .map(|post| -> Result<_> {
+                    let user = users.find(&post.user_id).first(&*conn)?;
+                    Ok(UserPost::new(user, post, vec![]))
+                })
+                .flatten();
+
+            let old_size = result.len();
+            result.extend(res);
+            if result.len() == old_size {
+                break;
+            }
+        }
+
+        Ok(result)
+    }
+
     pub async fn create_comment(&self, comment: &NewComment, claims: &Claims) -> Result<Comment> {
         use crate::schema::comments::{self, *};
         let user: User = self.get_init_user(claims).await?;

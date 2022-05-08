@@ -1,6 +1,4 @@
 <script>
-  import Button from "$lib/Button.svelte";
-  import Post from "$lib/Post.svelte";
   import Posts from "../lib/Posts.svelte";
   async function getPosts() {
     return fetch("/api/posts", { method: "GET" })

@@ -1,6 +1,7 @@
 <script>
   import Login from "./auth/Login.svelte";
   import Button from "./Button.svelte";
+  import Search from "./Search.svelte";
 
   const routes = ["About", "Home"];
 </script>
@@ -17,6 +18,7 @@
       </li>
     {/each}
   </ol>
+  <Search />
 
   <Button
     on:click={(_) => (location.href = "/create_post")}

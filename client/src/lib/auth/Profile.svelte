@@ -3,7 +3,7 @@
   import auth from "./service";
 </script>
 
-<div class="flex justify-start gap-2 items-center m-2">
+<div class="flex justify-start gap-2 p-2 items-center m-2">
   {#if user.picture}
     <img
       src={user.picture}
