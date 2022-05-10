@@ -24,9 +24,10 @@ export async function post({ request }) {
 }
 
 /** @type {import('./posts').RequestHandler} */
-export async function get() {
+export async function get({ request }) {
   console.log("Getting posts")
-  return await fetch(backend_url + "/posts", {
+  let params = new URL(request.url).searchParams
+  return await fetch(`${backend_url}/posts?${params}`, {
     method: "GET",
   })
 }

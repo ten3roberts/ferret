@@ -89,9 +89,18 @@ pub async fn get_user(db: Extension<Database>, Path(user_id): Path<String>) -> i
     )))
 }
 
-pub async fn get_posts(db: Extension<Database>) -> impl IntoResponse {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GetPostsParams {
+    page: u32,
+}
+
+pub async fn get_posts(
+    db: Extension<Database>,
+    Query(params): Query<GetPostsParams>,
+) -> impl IntoResponse {
     tracing::info!("Posts");
-    let posts = db.get_top_posts(20).await?;
+    println!("Getting posts: {params:?}");
+    let posts = db.get_top_posts(params.page).await?;
 
     Ok::<_, db::Error>(Json(posts))
 }

@@ -30,10 +30,6 @@ struct SearchCache {
 }
 
 impl SearchCache {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn find(&self, word: &str, conn: &PgConnection) -> RefMut<String, BTreeSet<i32>> {
         use crate::schema::posts::dsl::*;
         println!("Looking for {word}");
@@ -252,13 +248,15 @@ impl Database {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_top_posts(&self, limit: i64) -> Result<Vec<UserPost>> {
+    pub async fn get_top_posts(&self, page: u32) -> Result<Vec<UserPost>> {
+        const PAGE_COUNT: u32 = 2;
         use crate::schema::posts;
         use crate::schema::posts::*;
         let res: Vec<(User, Post)> = users::table
             .inner_join(posts::table)
             .order(created_at.desc())
-            .limit(limit)
+            .offset((page * PAGE_COUNT) as i64)
+            .limit(PAGE_COUNT as i64)
             .load(&*self.conn.lock().await)?;
 
         Ok(res
