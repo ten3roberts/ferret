@@ -1,5 +1,5 @@
 pub mod models;
-
+use std::collections::BTreeSet;
 use std::{env, sync::Arc};
 
 use crate::auth::Claims;
@@ -11,7 +11,9 @@ pub use self::models::*;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Redirect;
-use diesel::associations::HasTable;
+use dashmap::mapref::entry::Entry;
+use dashmap::mapref::one::RefMut;
+use dashmap::DashMap;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -21,9 +23,83 @@ use dotenv::dotenv;
 use tracing::error;
 use tracing::info;
 
+const PAGE_COUNT: i64 = 64;
+#[derive(Debug, Clone, Default)]
+struct SearchCache {
+    words: DashMap<String, BTreeSet<i32>>,
+}
+
+impl SearchCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn find(&self, word: &str, conn: &PgConnection) -> RefMut<String, BTreeSet<i32>> {
+        use crate::schema::posts::dsl::*;
+        println!("Looking for {word}");
+        match self.words.entry(word.to_owned()) {
+            Entry::Vacant(slot) => {
+                let res: BTreeSet<_> = (0..)
+                    .map(|v| {
+                        let page = posts
+                            .offset(v * PAGE_COUNT)
+                            .limit(PAGE_COUNT)
+                            .load::<Post>(conn)
+                            .unwrap();
+                        if page.is_empty() {
+                            None
+                        } else {
+                            Some(
+                                page.into_iter()
+                                    .filter(|v| {
+                                        v.title.to_lowercase().contains(word)
+                                            || v.body.to_lowercase().contains(word)
+                                    })
+                                    .map(|v| v.post_id),
+                            )
+                        }
+                    })
+                    .scan((), |_, item| item)
+                    .flatten()
+                    .collect();
+
+                slot.insert(res)
+            }
+            Entry::Occupied(slot) => {
+                println!("Found {word} in cache");
+                slot.into_ref()
+            }
+        }
+    }
+
+    pub fn update(&self, new: &Post) {
+        let title = new.title.to_lowercase();
+        let body = new.body.to_lowercase();
+
+        for mut val in self.words.iter_mut() {
+            let word = val.key();
+            if title.contains(word) || body.contains(word) {
+                val.value_mut().insert(new.post_id);
+            }
+        }
+    }
+
+    pub fn remove(&mut self, post: &Post) {
+        let title = post.title.to_lowercase();
+        let body = post.body.to_lowercase();
+
+        for word in title.split_whitespace().chain(body.split_whitespace()) {
+            if let Some(mut set) = self.words.get_mut(word) {
+                set.remove(&post.post_id);
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Database {
     conn: Arc<Mutex<PgConnection>>,
+    cache: Arc<SearchCache>,
 }
 
 #[derive(Debug, Error)]
@@ -60,6 +136,7 @@ impl Database {
         let db_url = env::var("DATABASE_URL").unwrap();
         Ok(Self {
             conn: Arc::new(Mutex::new(PgConnection::establish(&db_url)?)),
+            cache: Default::default(),
         })
     }
 
@@ -89,36 +166,24 @@ impl Database {
     }
 
     pub async fn find_posts(&self, text: &str) -> Result<Vec<UserPost>> {
-        const PAGE_COUNT: i64 = 64;
-
-        let conn = self.conn.lock().await;
         let text = text.to_lowercase();
 
         use crate::schema::posts::dsl::*;
         use crate::schema::users::dsl::*;
         let mut result = Vec::new();
 
-        for page in 0.. {
-            let res = posts
-                .offset(page * PAGE_COUNT)
-                .limit(PAGE_COUNT)
-                .load::<Post>(&*conn)?
-                .into_iter()
-                .filter(|post| {
-                    post.title.to_lowercase().contains(&text)
-                        || post.body.to_lowercase().contains(&text)
-                })
-                .map(|post| -> Result<_> {
-                    let user = users.find(&post.user_id).first(&*conn)?;
-                    Ok(UserPost::new(user, post, vec![]))
-                })
-                .flatten();
-
-            let old_size = result.len();
-            result.extend(res);
-            if result.len() == old_size {
-                break;
-            }
+        for word in text.split_whitespace() {
+            let conn = self.conn.lock().await;
+            result.extend(
+                self.cache
+                    .find(word, &*conn)
+                    .iter()
+                    .flat_map(|&id| -> Option<_> {
+                        let post: Post = posts.find(id).first(&*conn).ok()?;
+                        let user = users.find(&post.user_id).first(&*conn).ok()?;
+                        Some(UserPost::new(user, post, vec![]))
+                    }),
+            )
         }
 
         Ok(result)
@@ -233,7 +298,10 @@ impl Database {
             return Err(Error::Unauthorized);
         }
 
-        diesel::delete(posts.find(id)).execute(&*conn).unwrap();
+        diesel::update(posts.find(id))
+            .set(body.eq("[[deleted]]"))
+            .execute(&*conn)
+            .unwrap();
         tracing::info!("Here");
 
         dbg!(Ok(Redirect::to("/")))
@@ -289,6 +357,7 @@ impl Database {
             Err(e) => return Err(e.into()),
         };
 
+        self.cache.update(&post);
         Ok(UserPost::new(user, post, comments).solved_by(solved))
     }
 

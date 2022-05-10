@@ -179,6 +179,7 @@ async fn find_posts(
     db: Extension<Database>,
     Query(params): Query<FindParams>,
 ) -> impl IntoResponse {
+    println!("Looking for {params:?}");
     let posts = db.find_posts(&params.search_query).await?;
     Ok::<_, db::Error>(Json(json!({ "posts": posts })))
 }

@@ -4,7 +4,6 @@
     return fetch("/api/posts", { method: "GET" })
       .then((v) => v.json())
       .then((v) => {
-        console.log(v);
         return v;
       });
   }
