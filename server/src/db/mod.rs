@@ -38,6 +38,7 @@ impl SearchCache {
                 let res: BTreeSet<_> = (0..)
                     .map(|v| {
                         let page = posts
+                            .filter(deleted.eq(false))
                             .offset(v * PAGE_COUNT)
                             .limit(PAGE_COUNT)
                             .load::<Post>(conn)
@@ -80,14 +81,9 @@ impl SearchCache {
         }
     }
 
-    pub fn remove(&mut self, post: &Post) {
-        let title = post.title.to_lowercase();
-        let body = post.body.to_lowercase();
-
-        for word in title.split_whitespace().chain(body.split_whitespace()) {
-            if let Some(mut set) = self.words.get_mut(word) {
-                set.remove(&post.post_id);
-            }
+    pub fn remove(&self, post_id: i32) {
+        for mut set in self.words.iter_mut() {
+            set.value_mut().remove(&post_id);
         }
     }
 }
@@ -198,6 +194,7 @@ impl Database {
                 post_id.eq_all(comment.post_id),
                 user_id.eq_all(&user.user_id),
                 body.eq_all(&comment.body),
+                deleted.eq(false),
             ))
             .get_result(&*self.conn.lock().await)?;
 
@@ -222,18 +219,14 @@ impl Database {
                 user_id.eq_all(&user.user_id),
                 title.eq_all(&post.title),
                 body.eq_all(&post.body),
+                deleted.eq(false),
             ))
             .get_result(&*self.conn.lock().await)?;
 
         Ok(UserPost::new(user, post, vec![]))
     }
 
-    pub async fn get_user_posts(
-        &self,
-        user: &str,
-        limit: i64,
-        offset: i64,
-    ) -> Result<(User, Vec<Post>)> {
+    pub async fn get_user_posts(&self, user: &str, limit: i64) -> Result<(User, Vec<Post>)> {
         use crate::schema::posts::dsl::*;
         use crate::schema::users::dsl::*;
 
@@ -249,11 +242,12 @@ impl Database {
 
     #[tracing::instrument(skip(self))]
     pub async fn get_top_posts(&self, page: u32) -> Result<Vec<UserPost>> {
-        const PAGE_COUNT: u32 = 2;
+        const PAGE_COUNT: u32 = 16;
         use crate::schema::posts;
         use crate::schema::posts::*;
         let res: Vec<(User, Post)> = users::table
             .inner_join(posts::table)
+            .filter(deleted.eq(false))
             .order(created_at.desc())
             .offset((page * PAGE_COUNT) as i64)
             .limit(PAGE_COUNT as i64)
@@ -297,11 +291,10 @@ impl Database {
         }
 
         diesel::update(posts.find(id))
-            .set(body.eq("[[deleted]]"))
-            .execute(&*conn)
-            .unwrap();
-        tracing::info!("Here");
+            .set((body.eq(""), deleted.eq(true)))
+            .execute(&*conn)?;
 
+        self.cache.remove(id);
         dbg!(Ok(Redirect::to("/")))
     }
 
@@ -317,7 +310,9 @@ impl Database {
 
         self.authorize(&claims, user).await?;
 
-        diesel::delete(comments.find(id)).execute(&*self.conn.lock().await)?;
+        diesel::update(comments.find(id))
+            .set((body.eq("DELETED"), deleted.eq(true)))
+            .execute(&*self.conn.lock().await)?;
 
         Ok(Redirect::to(&(format!("/post/{}", comment.post_id))))
     }

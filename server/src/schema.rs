@@ -5,6 +5,7 @@ table! {
         user_id -> Varchar,
         body -> Text,
         created_at -> Timestamp,
+        deleted -> Bool,
     }
 }
 
@@ -15,6 +16,7 @@ table! {
         title -> Varchar,
         body -> Text,
         created_at -> Timestamp,
+        deleted -> Bool,
     }
 }
 

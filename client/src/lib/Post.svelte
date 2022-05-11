@@ -18,6 +18,8 @@
   export let detailed = false;
   let replying = false;
 
+  console.log(JSON.stringify(post));
+
   async function mark_solved(comment) {
     console.log("Marking as solved");
     let token = await auth.getToken();
@@ -54,7 +56,11 @@
       body: JSON.stringify({ id, token: await auth.getToken() }),
     });
     if (response.ok) {
-      comments = comments.filter((v) => v.comment.comment_id != id);
+      comments = comments.map((v) => {
+        if (v.comment.comment_id != id) {
+          v.deleted = true;
+        }
+      });
     }
   }
   $: owner = $isAuthenticated && $cur_user.sub == user.user_id;
@@ -66,10 +72,11 @@
     body={post.body}
     clickable={true}
     user={show_user ? user : null}
+    background={post.deleted ? "bg-purple-900" : "bg-dark"}
     created_at={post.created_at}
     on:click={() => (location.href = "/post/" + post.post_id)}
   >
-    {#if detailed && owner == true}
+    {#if detailed && owner == true && !post.deleted}
       <div class="flex flex-col justify-start">
         <Button text="Delete" on:click={(_) => del_post(post.post_id)} />
       </div>
@@ -87,36 +94,41 @@
           created_at={comment.created_at}
           background={solved_by == comment.comment_id
             ? "bg-green-500"
+            : comment.deleted
+            ? "bg-purple-900"
             : "bg-dark"}
         >
-          {#if $isAuthenticated && $cur_user.sub == user.user_id}
-            <div class="flex flex-col justify-start">
+          {#if !comment.deleted}
+            {#if $isAuthenticated && $cur_user.sub == user.user_id}
+              <div class="flex flex-col justify-start">
+                <Button
+                  text="Delete"
+                  on:click={(_) => del_comment(comment.comment_id)}
+                />
+              </div>
+            {/if}
+            {#if detailed && owner}
               <Button
-                text="Delete"
-                on:click={(_) => del_comment(comment.comment_id)}
+                text="Mark Solved"
+                on:click={(_) => mark_solved(comment.comment_id)}
               />
-            </div>
-          {/if}
-          {#if detailed && owner}
-            <Button
-              text="Mark Solved"
-              on:click={(_) => mark_solved(comment.comment_id)}
-            />
+            {/if}
           {/if}
         </Card>
       {/each}
-
-      {#if replying}
-        <Button text="Discard" on:click={(_) => (replying = false)} />
-        <CreateComment
-          post_id={post.post_id}
-          on_create={(v) => {
-            replying = false;
-            comments = [...comments, v];
-          }}
-        />
-      {:else}
-        <Button text="Reply" on:click={(_) => (replying = true)} />
+      {#if !post.deleted}
+        {#if replying}
+          <Button text="Discard" on:click={(_) => (replying = false)} />
+          <CreateComment
+            post_id={post.post_id}
+            on_create={(v) => {
+              replying = false;
+              comments = [...comments, v];
+            }}
+          />
+        {:else}
+          <Button text="Reply" on:click={(_) => (replying = true)} />
+        {/if}
       {/if}
     </div>
   {/if}

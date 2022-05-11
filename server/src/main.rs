@@ -1,17 +1,10 @@
-use color_eyre::Report;
-use eyre::Context;
-use hyper::Body;
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 pub use server::*;
 mod auth;
 
 use axum::{
-    body::Bytes,
     extract::{Extension, Path, Query},
-    http::{Request, Response},
-    middleware::{self, Next},
     response::IntoResponse,
     routing::{delete, get, patch, post},
     Json, Router,
@@ -79,7 +72,7 @@ pub async fn get_post(Path(id): Path<i32>, db: Extension<Database>) -> impl Into
 
 pub async fn get_user(db: Extension<Database>, Path(user_id): Path<String>) -> impl IntoResponse {
     tracing::info!("Posts");
-    let (user, posts) = db.get_user_posts(&user_id, 20, 0).await?;
+    let (user, posts) = db.get_user_posts(&user_id, 20).await?;
 
     Ok::<_, db::Error>(Json(json! (
         {

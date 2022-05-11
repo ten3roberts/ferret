@@ -23,6 +23,7 @@ pub struct Post {
     pub title: String,
     pub body: String,
     pub created_at: NaiveDateTime,
+    pub deleted: bool,
 }
 
 #[derive(Serialize, PartialEq)]
@@ -75,6 +76,7 @@ pub struct Comment {
     pub user_id: String,
     pub body: String,
     pub created_at: NaiveDateTime,
+    pub deleted: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
